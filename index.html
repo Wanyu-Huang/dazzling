@@ -1279,6 +1279,47 @@
             // 自动滚动到底部
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
+        
+        /**
+         * 处理 AI 的完整响应，并根据 '\n\n' 逐条显示消息。
+         * 同时将完整的AI回复计入 chatHistory。
+         * @param {string} fullAiText - 从 AI API 接收到的完整文本。
+         */
+        function processAndDisplaySegments(fullAiText) {
+            // 1. 定义消息分隔符和间隔时间
+            const separator = '\n\n';
+            const delay = 500; // 每条消息之间的间隔，单位：毫秒 (0.5 秒)
+
+            // 2. 根据 '\n\n' 分割完整的响应文本
+            const messageSegments = fullAiText.split(separator);
+
+            // 3. 逐条遍历并使用 setTimeout 实现延迟显示
+            messageSegments.forEach((segment, index) => {
+                const cleanSegment = segment.trim();
+
+                if (cleanSegment.length > 0) {
+                    // 实现延迟效果
+                    setTimeout(() => {
+                        // 调用您现有的 displayMessage 函数
+                        displayMessage(cleanSegment, 'char'); 
+                        
+                    }, index * delay); 
+                }
+            });
+
+            // 4. 将 AI 完整回复添加到历史记录 (非常重要!)
+            // 尽管显示时拆分了，但对于 AI，它仍然是一条完整的回复。
+            chatHistory.push({ role: "char", content: fullAiText });
+
+            // 5. 在所有分段显示完毕后，处理最终的 UI 滚动或状态
+            const totalDelay = messageSegments.length * delay;
+            setTimeout(() => {
+                // 确保滚动到最后一条消息
+                chatContainer.scrollTop = chatContainer.scrollHeight; 
+                
+                // 如果您希望在这里解锁输入框，也可以将 unlockInput() 放在这里
+            }, totalDelay);
+        }
 
         /**
          * 点击生成按钮，调用 API
@@ -1377,13 +1418,26 @@
 
                 const data = await response.json();
                 const aiResponseText = data.choices[0].message.content.trim();
-
-                // 5. 处理 AI 回复
+                
+                // 5. 替换/修改 AI 回复处理逻辑
+                
+                // A. 移除预留的占位符（'...'）
+                chatContainer.removeChild(aiMessagePlaceholder);
+                
+                // B. 调用新的函数来处理并逐条显示消息
+                // 传入完整的文本和历史记录数组，进行分段、延迟显示和历史记录更新。
+                processAndDisplaySegments(aiResponseText);
+                
+                
+                // 7. 解锁 UI (如果需要)
+                // enableInput(); // 例如：在这里调用解锁输入框的函数
+                /*未实现分段版 5. 处理 AI 回复
                 // 更新占位符为实际的回复内容
                 aiBubble.textContent = aiResponseText;
                 
                 // 6. 将 AI 回复添加到历史记录
-                chatHistory.push({ role: "assistant", content: aiResponseText });
+                chatHistory.push({ role: "char", content: aiResponseText });
+                */
 
             } catch (error) {
                 console.error("API 调用出错:", error);
@@ -1394,7 +1448,7 @@
                 updateSendButtonState();
             }
         };
-
+        
         // 监听 Enter 键发送 (可选)
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
