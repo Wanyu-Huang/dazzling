@@ -17,20 +17,38 @@
             overflow: hidden; /* 防止底部输入框滚动 */
         }
         
-        /* 顶部导航栏 (Header) */
+        /* 顶部导航栏 (Header) 
         .header {
-            display: flxed;
+            display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px 15px;
-            background-color: #EDEDED; /* 仿微信深色顶部 */
+            background-color: #EDEDED; // 仿微信深色顶部 
             color: #333;
             font-size: 18px;
             font-weight: 500;
             border-bottom: 1px solid #dcdcdc;
             flex-shrink: 0;
+        }*/
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #EDEDED;
+            color: #333;
+            font-size: 18px;
+            font-weight: 500;
+            border-bottom: 1px solid #dcdcdc;
+            
+            /* --- 关键修改 --- */
+            position: sticky;  /* 粘性定位 */
+            top: 0;            /* 粘在顶部 */
+            z-index: 1000;     /* 保证在最上层 */
+            width: 100%;       /* 占满容器宽度 */
+            box-sizing: border-box;
+            flex-shrink: 0;    /* 防止在 flex 布局中被压缩 */
         }
-
         .header-title {
             flex-grow: 1;
             text-align: center;
