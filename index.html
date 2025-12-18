@@ -118,9 +118,11 @@
         .bubble {
             max-width: 75%;
             padding: 10px 12px;
+            padding-bottom: 18px; /* 为时间戳留出空间 */
             border-radius: 8px;
             line-height: 1.4;
             word-wrap: break-word;
+            position: relative;
         }
 
         .message.user .bubble {
@@ -136,6 +138,48 @@
             border: 1px solid #e7e7e7;
         }
         
+        /* WhatsApp风格的时间戳和状态 */
+        .message-meta {
+            position: absolute;
+            bottom: 3px;
+            right: 8px;
+            font-size: 11px;
+            color: #667781;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .message.user .message-meta {
+            color: #667781;
+        }
+        
+        /* 对勾样式 */
+        .checkmark {
+            display: inline-block;
+            font-size: 14px;
+            color: #667781;
+        }
+        
+        .checkmark.double {
+            color: #53bdeb; /* 蓝色表示已读/已送达 */
+        }
+        
+        /* 正在输入指示器 (仿微信，黑色) */
+        .typing-indicator {
+            color: #333;
+            font-size: 14px;
+        }
+        .page {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
         /* 聊天输入区 */
         .chat-input-area {
             position: fixed;
@@ -359,7 +403,7 @@
             <header class="header">
                 <button onclick="showPage('home-page', document.querySelector('.nav-item:nth-child(1)'))">⌂</button>
                 <button onclick="clearChat()">🗑️</button>
-                <span class="header-title">AI 聊天对象</span>
+                <span class="header-title" id="chat-name">AI 聊天对象</span>
                 <button onclick="openSettings()">⚙️</button>
             </header>
             
@@ -400,7 +444,11 @@
                     <input type="text" id="modelname" placeholder="模型名称">
                 </div>
                 
-                <h3>系统角色设置 (Prompt)</h3>
+                <h3>系统角色设置 </h3>
+                <div class="form-group">
+                    <label for="chat-name-input">昵称</label>
+                    <input type="text" id="chat-name-input" placeholder="聊天对象的昵称">
+                </div>
                 <div class="form-group">
                     <label for="system-prompt">系统指令 (AI 扮演的角色)</label>
                     <textarea id="system-prompt" rows="8"></textarea>
@@ -777,6 +825,9 @@
             systemPromptArea.value = config.systemPrompt; 
             // 启用或禁用发送按钮
             updateSendButtonState();
+            
+            // 更新聊天对象名称
+            updateChatName();
 
             // 加载并渲染桌面布局（保存在全局 currentLayout）
             currentLayout = loadDesktopLayout();
@@ -1204,7 +1255,7 @@
 
             // 始终滚动到底部
             chatContainer.scrollTop = chatContainer.scrollHeight;
-        }*/
+        }
        function loadHistoryUI() {
             const chatContainer = document.getElementById('chat-container');
             if (!chatContainer) return;
@@ -1214,6 +1265,9 @@
 
             if (chatHistory.length === 0) {
                 displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "ai");
+                requestAnimationFrame(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
                 return;
             }
 
@@ -1229,20 +1283,93 @@
                     displayMessage(item.content, 'user');
                 }
             });
-
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // 确保 DOM 完全渲染后再滚动
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    console.log('滚动完成:', chatContainer.scrollTop, chatContainer.scrollHeight);
+                });
+            });
         }
+
+        function loadHistoryUI() {
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatContainer) return;
+
+            chatContainer.innerHTML = '';
+
+            if (chatHistory.length === 0) {
+                displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "ai");
+                scrollToBottom();
+                return;
+            }
+
+            chatHistory.forEach(item => {
+                const isAI = (item.role === 'assistant' || item.role === 'ai');
+                if (isAI) {
+                    const segments = item.content.split('\n\n');
+                    segments.forEach(seg => {
+                        if (seg.trim()) displayMessage(seg.trim(), 'ai');
+                    });
+                } else {
+                    displayMessage(item.content, 'user');
+                }
+            });
+            
+            scrollToBottom();
+        }*/
+        function loadHistoryUI() {
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatContainer) return;
+
+            chatContainer.innerHTML = '';
+
+            if (chatHistory.length === 0) {
+                displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "ai");
+            } else {
+                chatHistory.forEach(item => {
+                    const isAI = (item.role === 'assistant' || item.role === 'ai');
+                    const timestamp = item.timestamp || null; // 获取时间戳
+                    
+                    if (isAI) {
+                        const segments = item.content.split('\n\n');
+                        segments.forEach(seg => {
+                            if (seg.trim()) displayMessage(seg.trim(), 'ai', 0, timestamp);
+                        });
+                    } else {
+                        // 历史记录中的用户消息显示双勾（表示已送达）
+                        displayMessage(item.content, 'user', 2, timestamp);
+                    }
+                });
+            }
+            // ✅ 滚动 .content
+            setTimeout(() => {
+                const content = document.querySelector('.content');
+                if (content) {
+                    content.scrollTop = content.scrollHeight;
+                    console.log('loadHistoryUI 滚动:', content.scrollTop);
+                }
+            }, 100);
+        }
+
 
         /**
          * 保存配置到本地存储
          */
         function saveSettings() {
+            const chatName = document.getElementById('chat-name-input').value.trim();
             config.baseurl = document.getElementById('baseurl').value.trim();
             config.apikey = document.getElementById('apikey').value.trim();
             config.modelname = document.getElementById('modelname').value.trim();
             config.systemPrompt = document.getElementById('system-prompt').value.trim();
             
+            // 保存聊天对象名称
+            localStorage.setItem('chatName', chatName || 'AI 聊天对象');
             localStorage.setItem('aiChatConfig', JSON.stringify(config));
+            
+            // 立即更新聊天页面标题
+            updateChatName();
+            
             alert('设置已保存并生效！');
             updateSendButtonState();
             closeSettings();
@@ -1268,7 +1395,7 @@
         }
 
         /**
-         * 切换页面 
+         * 切换页面
          */
         function showPage(pageId, navElement) {
             document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
@@ -1278,15 +1405,11 @@
             if (navElement) {
                 navElement.classList.add('active');
             }
-            /* 切换到聊天页面时加载历史记录 UI
-            if (pageId === 'chat-page') {
-                loadHistoryUI();
-            }*/
             // 进入聊天页时进行“尾值比对”
             if (pageId === 'chat-page') {
                 const chatContainer = document.getElementById('chat-container');
                 const allBubbles = chatContainer.querySelectorAll('.bubble');
-                
+
                 // 获取当前界面最后一个气泡的文本
                 let lastUiText = allBubbles.length > 0 ? allBubbles[allBubbles.length - 1].textContent.trim() : "";
 
@@ -1301,10 +1424,17 @@
                 // 💡 只有在内容不匹配，或者界面完全为空且数据不为空时，才执行渲染
                 if (lastUiText !== lastDataText || (allBubbles.length === 0 && chatHistory.length > 0)) {
                     console.log("检测到内容不一致，执行重置渲染");
-                    loadHistoryUI(); 
+                    loadHistoryUI();
                 } else {
                     console.log("内容匹配，保持当前界面状态");
                 }
+                setTimeout(() => {
+                const content = document.querySelector('.content');
+                if (content) {
+                    content.scrollTop = content.scrollHeight;
+                    console.log('showPage 滚动:', content.scrollTop);
+                }
+            }, 100);
             }
         }
 
@@ -1312,11 +1442,27 @@
          * 打开和关闭设置页面 (用于头部按钮)
          */
         function openSettings() {
+            // 加载聊天对象名称到输入框
+            const savedChatName = localStorage.getItem('chatName');
+            if (savedChatName) {
+                document.getElementById('chat-name-input').value = savedChatName;
+            }
             showPage('settings-page', document.querySelector('.nav-item:last-child'));
         }
 
         function closeSettings() {
             showPage('chat-page', document.querySelector('.nav-item:nth-child(2)'));
+        }
+
+        /**
+         * 更新聊天页面的标题
+         */
+        function updateChatName() {
+            const savedChatName = localStorage.getItem('chatName');
+            const chatNameElement = document.getElementById('chat-name');
+            if (chatNameElement && savedChatName) {
+                chatNameElement.textContent = savedChatName;
+            }
         }
 
         /**
@@ -1386,30 +1532,115 @@
             if (confirm("确定要清空所有聊天记录吗？（包括缓存）")) {
                 localStorage.removeItem('chatHistory');
                 chatHistory = [];
-                chatContainer.innerHTML = `
-                    <div class="message ai">
-                        <div class="bubble">你好！有什么想跟我聊聊的吗？我很期待。</div>
-                    </div>
-                `;
+                chatContainer.innerHTML = '';
+                // 使用displayMessage函数显示初始消息，确保有时间戳
+                displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "ai");
             }
         }
 
         /**
          * 在界面上显示一条消息
+         * @param {string} text - 消息内容
+         * @param {string} role - 消息角色 ('user' 或 'ai')
+         * @param {number} status - 消息状态 (1=单勾, 2=双勾, 0=无勾)
+         * @param {string} timestamp - 可选的时间戳，如果不提供则使用当前时间
+         * @returns {string} 返回使用的时间戳
          */
-        function displayMessage(text, role) {
+        function displayMessage(text, role, status = 0, timestamp = null) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', role);
 
             const bubbleDiv = document.createElement('div');
             bubbleDiv.classList.add('bubble');
             bubbleDiv.textContent = text;
-
+            
+            // 添加时间戳和状态指示器
+            const metaDiv = document.createElement('div');
+            metaDiv.classList.add('message-meta');
+            
+            // 使用提供的时间戳或生成新的
+            let timeStr;
+            let fullTimestamp;
+            if (timestamp) {
+                const time = new Date(timestamp);
+                timeStr = time.getHours().toString().padStart(2, '0') + ':' + 
+                         time.getMinutes().toString().padStart(2, '0');
+                fullTimestamp = timestamp;
+            } else {
+                const now = new Date();
+                timeStr = now.getHours().toString().padStart(2, '0') + ':' + 
+                         now.getMinutes().toString().padStart(2, '0');
+                fullTimestamp = now.toISOString();
+            }
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.textContent = timeStr;
+            metaDiv.appendChild(timeSpan);
+            
+            // 只在用户消息中添加对勾
+            if (role === 'user') {
+                const checkmark = document.createElement('span');
+                checkmark.classList.add('checkmark');
+                if (status === 2) {
+                    checkmark.classList.add('double');
+                    checkmark.textContent = '✓✓';
+                } else if (status === 1) {
+                    checkmark.textContent = '✓';
+                }
+                metaDiv.appendChild(checkmark);
+                
+                // 将状态保存到元素上，方便后续更新
+                messageDiv.dataset.status = status;
+            }
+            
+            bubbleDiv.appendChild(metaDiv);
             messageDiv.appendChild(bubbleDiv);
             chatContainer.appendChild(messageDiv);
             
-            // 自动滚动到底部
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return fullTimestamp; // 返回时间戳
+        }
+        
+        /**
+         * 更新最后一条用户消息的对勾状态
+         * @param {number} status - 1=单勾, 2=双勾
+         */
+        function updateLastMessageStatus(status) {
+            const userMessages = chatContainer.querySelectorAll('.message.user');
+            if (userMessages.length === 0) return;
+            
+            const lastMessage = userMessages[userMessages.length - 1];
+            const checkmark = lastMessage.querySelector('.checkmark');
+            
+            if (checkmark) {
+                if (status === 2) {
+                    checkmark.classList.add('double');
+                    checkmark.textContent = '✓✓';
+                } else if (status === 1) {
+                    checkmark.textContent = '✓';
+                }
+                lastMessage.dataset.status = status;
+            }
+        }
+        
+        /**
+         * 显示"对方正在输入中..."
+         */
+        function showTypingIndicator() {
+            const chatNameElement = document.getElementById('chat-name');
+            if (chatNameElement) {
+                chatNameElement.dataset.originalName = chatNameElement.textContent;
+                chatNameElement.innerHTML = '<span class="typing-indicator">对方正在输入中...</span>';
+            }
+        }
+        
+        /**
+         * 隐藏"对方正在输入中..."，恢复聊天对象名称
+         */
+        function hideTypingIndicator() {
+            const chatNameElement = document.getElementById('chat-name');
+            if (chatNameElement && chatNameElement.dataset.originalName) {
+                chatNameElement.textContent = chatNameElement.dataset.originalName;
+            }
         }
         
         /**
@@ -1421,6 +1652,9 @@
             // 1. 定义消息分隔符和间隔时间
             const separator = '\n\n';
             const delay = 500; // 每条消息之间的间隔，单位：毫秒 (0.5 秒)
+            
+            // 生成AI消息的时间戳（所有分段使用同一个时间）
+            const aiTimestamp = new Date().toISOString();
 
             // 2. 根据 '\n\n' 分割完整的响应文本
             const messageSegments = fullAiText.split(separator);
@@ -1432,15 +1666,19 @@
                 if (cleanSegment.length > 0) {
                     // 实现延迟效果
                     setTimeout(() => {
-                        displayMessage(cleanSegment, 'ai'); 
+                        displayMessage(cleanSegment, 'ai', 0, aiTimestamp); 
                         
                     }, index * delay); 
                 }
             });
 
-            // 4. 将 AI 完整回复添加到历史记录 
+            // 4. 将 AI 完整回复添加到历史记录（包含时间戳）
             // 尽管显示时拆分了，但对于 AI，它仍然是一条完整的回复。
-            chatHistory.push({ role: "assistant", content: fullAiText });
+            chatHistory.push({ 
+                role: "assistant", 
+                content: fullAiText,
+                timestamp: aiTimestamp 
+            });
             saveChatToLocal(); // 存入本地存储
 
             // 5. 在所有分段显示完毕后，处理最终的 UI 滚动或状态
@@ -1466,15 +1704,29 @@
                 return;
             }
 
-            // 1. 在界面显示用户消息
-            displayMessage(userMessage, 'user');
+            // 1. 在界面显示用户消息（初始状态：单勾），并获取时间戳
+            const messageTimestamp = displayMessage(userMessage, 'user', 1);
             
-            // 2. 将用户消息添加到历史记录
-            chatHistory.push({ role: "user", content: userMessage });
+            // 2. 将用户消息添加到历史记录（包含时间戳）
+            chatHistory.push({ 
+                role: "user", 
+                content: userMessage,
+                timestamp: messageTimestamp 
+            });
             saveChatToLocal(); // ⬅️ 新增：立刻存入本地存储
             userInput.value = ''; // 清空输入框
             generateBtn.disabled = true;
             generateBtn.textContent = '思考中...';
+
+            // 3. 模拟发送到服务器，更新为双勾
+            setTimeout(() => {
+                updateLastMessageStatus(2); // 显示双勾
+            }, 200);
+
+            // 4. 显示"对方正在输入中..."
+            setTimeout(() => {
+                showTypingIndicator();
+            }, 300);
 
             // 3. 构建 API 请求体
             // 预留一个位置给 AI 的回复，用于流式响应或加载指示
@@ -1505,6 +1757,19 @@
             // 1. 核心系统指令 (角色设定)
             let finalSystemPrompt = config.systemPrompt;
             
+            // 2. 添加当前时间信息到系统提示
+            const now = new Date();
+            const currentTimeStr = now.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                weekday: 'long',
+                hour12: false
+            });
+            finalSystemPrompt += `\n\n[当前时间]: ${currentTimeStr}`;
+            
             /*2. 附加长期记忆到系统指令中
             if (longTermMemory.length > 0) {
                 finalSystemPrompt += `\n\n[核心长期记忆]：\n${longTermMemory}`;
@@ -1512,9 +1777,36 @@
             
             // 完整的请求消息列表：
             // [System Prompt + 长期记忆] + [短期聊天记录 (N 条)]
+            // 为每条消息添加时间信息，让AI能感知时间
+            const messagesWithTime = shortTermContext.map(msg => {
+                if (msg.timestamp) {
+                    // 将ISO时间戳转换为可读格式
+                    const time = new Date(msg.timestamp);
+                    const timeStr = time.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
+                    
+                    // 在消息内容前添加时间标记
+                    return {
+                        role: msg.role,
+                        content: `[${timeStr}] ${msg.content}`
+                    };
+                } else {
+                    return {
+                        role: msg.role,
+                        content: msg.content
+                    };
+                }
+            });
+            
             const messages = [
                 { role: "system", content: finalSystemPrompt },
-                ...shortTermContext 
+                ...messagesWithTime 
             ];
             /*const messages = [
                 { role: "system", content: config.systemPrompt },
@@ -1557,7 +1849,10 @@
                 // A. 移除预留的占位符（'...'）
                 chatContainer.removeChild(aiMessagePlaceholder);
                 
-                // B. 调用新的函数来处理并逐条显示消息
+                // B. 隐藏"对方正在输入中..."
+                hideTypingIndicator();
+                
+                // C. 调用新的函数来处理并逐条显示消息
                 // 传入完整的文本和历史记录数组，进行分段、延迟显示和历史记录更新。
                 processAndDisplaySegments(aiResponseText);
                 
@@ -1575,13 +1870,44 @@
             } catch (error) {
                 console.error("API 调用出错:", error);
                 aiBubble.textContent = `[错误] 无法获取回复。请检查您的设置和网络连接。详细错误：${error.message}`;
+                hideTypingIndicator(); // 出错时也要隐藏
             } finally {
                 // 7. 恢复发送按钮状态
                 generateBtn.disabled = false;
                 updateSendButtonState();
             }
         };
-        
+        /**
+         *滚动到聊天内容底部（双 requestAnimationFrame 确保渲染完成）
+         
+        function scrollToBottom() {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    // ✅ 滚动 .content 容器，而不是 
+                    const contentArea = document.querySelector('.content');
+                    if (contentArea) {
+                        contentArea.scrollTop = contentArea.scrollHeight;
+                        console.log('滚动完成 - scrollTop:', contentArea.scrollTop, 'scrollHeight:', contentArea.scrollHeight);
+                    }
+                });
+            });
+        }*/
+        function scrollToBottom() {
+            // ✅ 增加延迟到 500ms，确保 .content 高度已经计算完成
+            setTimeout(() => {
+                const contentArea = document.querySelector('.content');
+                
+                if (contentArea) {
+                    console.log('准备滚动 .content');
+                    console.log('scrollHeight:', contentArea.scrollHeight);
+                    console.log('clientHeight:', contentArea.clientHeight);
+                    
+                    contentArea.scrollTop = contentArea.scrollHeight;
+                    
+                    console.log('滚动后 scrollTop:', contentArea.scrollTop);
+                }
+            }, 200); 
+        }
         // 监听 Enter 键发送 (可选)
         userInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
