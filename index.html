@@ -168,7 +168,7 @@
         /* 正在输入指示器 (仿微信，黑色) */
         .typing-indicator {
             color: #333;
-            font-size: 14px;
+            font-size: 18px;
         }
         .page {
             display: none;
@@ -376,6 +376,147 @@
             display: flex;
             flex-direction: column;
         }
+        
+        /* ========== 长按菜单样式 ========== */
+        .bubble-menu {
+            position: fixed;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 8px 0;
+            z-index: 10000;
+            min-width: 150px;
+            display: none;
+        }
+        
+        .bubble-menu.active {
+            display: block;
+        }
+        
+        .bubble-menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            color: #333;
+            transition: background 0.2s;
+        }
+        
+        .bubble-menu-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .bubble-menu-item:active {
+            background: #e8e8e8;
+        }
+        
+        .bubble-menu-item.danger {
+            color: #ff3b30;
+        }
+        
+        .bubble-menu-item .icon {
+            font-size: 18px;
+        }
+        
+        /* 遮罩层 */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 9999;
+            display: none;
+        }
+        
+        .menu-overlay.active {
+            display: block;
+        }
+        
+        /* 气泡选中状态 */
+        .bubble.menu-active {
+            background: rgba(0,0,0,0.05);
+        }
+        
+        /* 确认对话框 */
+        .confirm-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 10002;
+            display: none;
+        }
+        
+        .confirm-dialog.active {
+            display: block;
+        }
+        
+        .confirm-dialog-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .confirm-dialog-message {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .confirm-dialog-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .confirm-dialog-button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .confirm-dialog-button.primary {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .confirm-dialog-button.primary:hover {
+            background: #0056b3;
+        }
+        
+        .confirm-dialog-button.secondary {
+            background: #FF9500;
+            color: white;
+        }
+        
+        .confirm-dialog-button.secondary:hover {
+            background: #e68600;
+        }
+        
+        .confirm-dialog-button.cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .confirm-dialog-button.cancel:hover {
+            background: #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -494,6 +635,19 @@
         </div>
 
 
+    </div>
+    
+    <!-- 长按菜单 -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+    <div class="bubble-menu" id="bubble-menu"></div>
+    
+    <!-- 确认对话框 -->
+    <div class="confirm-dialog" id="confirm-dialog">
+        <div class="confirm-dialog-title" id="confirm-title">提示</div>
+        <div class="confirm-dialog-message" id="confirm-message">确认执行此操作？</div>
+        <div class="confirm-dialog-buttons" id="confirm-buttons">
+            <!-- 动态生成按钮 -->
+        </div>
     </div>
     
     <script>
@@ -1622,6 +1776,425 @@
                 displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "assistant");
             }
         }
+        
+        // ========== 长按菜单功能 ==========
+        /**
+         * 设置气泡的长按菜单
+         */
+        function setupLongPressMenu(bubbleElement, bubble) {
+            let pressTimer = null;
+            
+            // 触摸开始
+            bubbleElement.addEventListener('touchstart', (e) => {
+                pressTimer = setTimeout(() => {
+                    showBubbleMenu(bubbleElement, bubble, e.touches[0]);
+                }, 500); // 500ms长按
+            });
+            
+            // 触摸结束或移动时取消
+            bubbleElement.addEventListener('touchend', () => {
+                if (pressTimer) clearTimeout(pressTimer);
+            });
+            
+            bubbleElement.addEventListener('touchmove', () => {
+                if (pressTimer) clearTimeout(pressTimer);
+            });
+            
+            // PC端支持：右键点击
+            bubbleElement.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showBubbleMenu(bubbleElement, bubble, e);
+            });
+        }
+        
+        /**
+         * 显示气泡菜单
+         */
+        function showBubbleMenu(bubbleElement, bubble, touchOrEvent) {
+            const menuOverlay = document.getElementById('menu-overlay');
+            const bubbleMenu = document.getElementById('bubble-menu');
+            
+            if (!menuOverlay || !bubbleMenu) {
+                console.error('❌ 菜单元素未找到');
+                return;
+            }
+            
+            // 高亮当前气泡
+            bubbleElement.classList.add('menu-active');
+            
+            // 构建菜单项
+            const menuItems = [];
+            
+            // 第一项：复制
+            menuItems.push({
+                icon: '📋',
+                text: '复制',
+                action: () => copyBubbleContent(bubble)
+            });
+            
+            // 所有气泡都有的选项
+            menuItems.push({
+                icon: '💬',
+                text: '引用',
+                action: () => quoteBubble(bubble)
+            });
+            
+            menuItems.push({
+                icon: '✏️',
+                text: '编辑',
+                action: () => editBubble(bubble)
+            });
+            
+            menuItems.push({
+                icon: '🗑️',
+                text: '删除',
+                danger: true,
+                action: () => deleteBubble(bubble, bubbleElement)
+            });
+            
+            // assistant气泡额外选项
+            if (bubble.role === 'assistant') {
+                menuItems.push({
+                    icon: '🔄',
+                    text: '重新生成',
+                    action: () => regenerateResponse(bubble)
+                });
+            }
+            
+            // 渲染菜单
+            bubbleMenu.innerHTML = menuItems.map(item => `
+                <div class="bubble-menu-item ${item.danger ? 'danger' : ''}" data-action="${item.text}">
+                    <span class="icon">${item.icon}</span>
+                    <span>${item.text}</span>
+                </div>
+            `).join('');
+            
+            // 绑定点击事件
+            bubbleMenu.querySelectorAll('.bubble-menu-item').forEach((item, index) => {
+                item.onclick = () => {
+                    menuItems[index].action();
+                    closeBubbleMenu(bubbleElement);
+                };
+            });
+            
+            // 定位菜单
+            const x = touchOrEvent.clientX || touchOrEvent.pageX;
+            const y = touchOrEvent.clientY || touchOrEvent.pageY;
+            
+            bubbleMenu.style.left = x + 'px';
+            bubbleMenu.style.top = y + 'px';
+            
+            // 显示
+            menuOverlay.classList.add('active');
+            bubbleMenu.classList.add('active');
+            
+            // 点击遮罩关闭
+            menuOverlay.onclick = () => closeBubbleMenu(bubbleElement);
+        }
+        
+        /**
+         * 关闭菜单
+         */
+        function closeBubbleMenu(bubbleElement) {
+            const menuOverlay = document.getElementById('menu-overlay');
+            const bubbleMenu = document.getElementById('bubble-menu');
+            
+            if (menuOverlay) menuOverlay.classList.remove('active');
+            if (bubbleMenu) bubbleMenu.classList.remove('active');
+            if (bubbleElement) bubbleElement.classList.remove('menu-active');
+        }
+        
+        /**
+         * 复制气泡内容到剪贴板
+         */
+        async function copyBubbleContent(bubble) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(bubble.content);
+                    showToast('已复制');
+                } else {
+                    // 降级方案
+                    const textarea = document.createElement('textarea');
+                    textarea.value = bubble.content;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('已复制');
+                }
+            } catch (error) {
+                console.error('❌ 复制失败:', error);
+                alert('复制失败');
+            }
+        }
+        
+        /**
+         * 显示临时提示
+         */
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 10001;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 1000);
+        }
+        
+        /**
+         * 删除气泡
+         */
+        function deleteBubble(bubble, bubbleElement) {
+            chatHistory = chatHistory.filter(b => b.id !== bubble.id);
+            pendingSummaryBubbles = pendingSummaryBubbles.filter(b => b.id !== bubble.id);
+            saveChatHistory();
+            
+            const messageDiv = chatContainer.querySelector(`[data-bubble-id="${bubble.id}"]`);
+            if (messageDiv) messageDiv.remove();
+            
+            console.log('🗑️ 已删除气泡:', bubble.id);
+        }
+        
+        /**
+         * 重新生成回复
+         */
+        async function regenerateResponse(bubble) {
+            const bubbleIndex = chatHistory.findIndex(b => b.id === bubble.id);
+            if (bubbleIndex === -1) return;
+            
+            // 检查是否有后续对话
+            const hasFollowingMessages = bubbleIndex < chatHistory.length - 1;
+            
+            if (hasFollowingMessages) {
+                // 有后续对话，显示确认对话框
+                showConfirmDialog({
+                    title: '重新生成确认',
+                    message: '重新生成会删除当前回复及之后的所有对话。是否保存当前分支？',
+                    buttons: [
+                        {
+                            text: '保存并重新生成',
+                            className: 'primary',
+                            action: async () => {
+                                // 导出当前分支
+                                exportCurrentBranch();
+                                // 执行重新生成
+                                await doRegenerate(bubbleIndex);
+                            }
+                        },
+                        {
+                            text: '直接重新生成',
+                            className: 'secondary',
+                            action: async () => {
+                                await doRegenerate(bubbleIndex);
+                            }
+                        },
+                        {
+                            text: '取消',
+                            className: 'cancel',
+                            action: () => {
+                                hideConfirmDialog();
+                            }
+                        }
+                    ]
+                });
+            } else {
+                // 是最后一条，直接重新生成
+                await doRegenerate(bubbleIndex);
+            }
+        }
+        
+        /**
+         * 执行重新生成（内部函数）
+         */
+        async function doRegenerate(bubbleIndex) {
+            // 向上查找：找到本轮assistant回复的第一条
+            // 即向上找到最后一个user气泡后的第一个assistant气泡
+            let startIndex = bubbleIndex;
+            
+            // 向上遍历，找到同一组的第一个assistant
+            while (startIndex > 0 && chatHistory[startIndex - 1].role === 'assistant') {
+                startIndex--;
+            }
+            
+            console.log('🔍 向上查找: 从索引', bubbleIndex, '找到第一个assistant在索引', startIndex);
+            
+            // 删除从startIndex开始的所有气泡（包括user和assistant）
+            const bubblestoDelete = chatHistory.slice(startIndex);
+            
+            // 从UI删除
+            bubblestoDelete.forEach(b => {
+                const msgDiv = chatContainer.querySelector(`[data-bubble-id="${b.id}"]`);
+                if (msgDiv) msgDiv.remove();
+            });
+            
+            // 从数据删除
+            chatHistory = chatHistory.slice(0, startIndex);
+            pendingSummaryBubbles = pendingSummaryBubbles.filter(b => 
+                !bubblestoDelete.find(deleted => deleted.id === b.id)
+            );
+            saveChatHistory();
+            
+            console.log('🔄 重新生成，删除了', bubblestoDelete.length, '个气泡 (从索引', startIndex, '开始)');
+            
+            // 调用API
+            await callAPIForRegeneration();
+        }
+        
+        /**
+         * 导出当前分支
+         */
+        function exportCurrentBranch() {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `chat_branch_${timestamp}.json`;
+            
+            const dataStr = JSON.stringify(chatHistory, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const link = document.createElement('a');
+            link.setAttribute('href', dataUri);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('分支已保存');
+            console.log('💾 已导出分支:', filename);
+        }
+        
+        /**
+         * 显示确认对话框
+         */
+        function showConfirmDialog({ title, message, buttons }) {
+            const dialog = document.getElementById('confirm-dialog');
+            const overlay = document.getElementById('menu-overlay');
+            const titleEl = document.getElementById('confirm-title');
+            const messageEl = document.getElementById('confirm-message');
+            const buttonsEl = document.getElementById('confirm-buttons');
+            
+            if (!dialog || !overlay) return;
+            
+            // 设置内容
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            // 生成按钮
+            buttonsEl.innerHTML = buttons.map((btn, idx) => `
+                <button class="confirm-dialog-button ${btn.className}" data-btn-index="${idx}">
+                    ${btn.text}
+                </button>
+            `).join('');
+            
+            // 绑定事件
+            buttonsEl.querySelectorAll('button').forEach((btnEl, idx) => {
+                btnEl.onclick = () => {
+                    hideConfirmDialog();
+                    if (buttons[idx].action) {
+                        buttons[idx].action();
+                    }
+                };
+            });
+            
+            // 显示
+            overlay.classList.add('active');
+            dialog.classList.add('active');
+            
+            // 点击遮罩关闭
+            overlay.onclick = hideConfirmDialog;
+        }
+        
+        /**
+         * 隐藏确认对话框
+         */
+        function hideConfirmDialog() {
+            const dialog = document.getElementById('confirm-dialog');
+            const overlay = document.getElementById('menu-overlay');
+            
+            if (dialog) dialog.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+        
+        /**
+         * 调用API重新生成
+         */
+        async function callAPIForRegeneration() {
+            showTypingIndicator();
+            
+            try {
+                const N = parseInt(localStorage.getItem('contextWindowSize')) || 50;
+                const recentBubbles = chatHistory.slice(-N);
+                const apiMessages = convertToAPIFormat(recentBubbles);
+                
+                let finalSystemPrompt = config.systemPrompt;
+                const now = new Date();
+                const currentTimeStr = now.toLocaleString('zh-CN', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', weekday: 'long', hour12: false
+                });
+                finalSystemPrompt += `\n\n[当前时间]: ${currentTimeStr}`;
+                
+                const messagesWithTime = apiMessages.map(msg => {
+                    if (msg.timestamp) {
+                        const time = new Date(msg.timestamp);
+                        const timeStr = time.toLocaleString('zh-CN', {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                        });
+                        return { role: msg.role, content: `[${timeStr}] ${msg.content}` };
+                    }
+                    return { role: msg.role, content: msg.content };
+                });
+                
+                const messages = [
+                    { role: "system", content: finalSystemPrompt },
+                    ...messagesWithTime
+                ];
+                
+                const response = await fetch(config.baseurl + '/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apikey}` },
+                    body: JSON.stringify({ model: config.modelname, messages: messages })
+                });
+                
+                const data = await response.json();
+                hideTypingIndicator();
+                
+                if (data.choices && data.choices[0]) {
+                    const aiResponseText = data.choices[0].message.content.trim();
+                    processAndDisplaySegments(aiResponseText);
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('重新生成失败:', error);
+                alert('重新生成失败');
+            }
+        }
+        
+        /**
+         * 引用气泡（占位）
+         */
+        function quoteBubble(bubble) {
+            showToast('引用功能开发中');
+        }
+        
+        /**
+         * 编辑气泡（占位）
+         */
+        function editBubble(bubble) {
+            showToast('编辑功能开发中');
+        }
+        // ====================================
 
         /**
          * 在界面上显示一条消息
@@ -1698,6 +2271,9 @@
             bubbleDiv.appendChild(metaDiv);
             messageDiv.appendChild(bubbleDiv);
             chatContainer.appendChild(messageDiv);
+            
+            // 添加长按菜单
+            setupLongPressMenu(bubbleDiv, bubble);
             
             return bubble;
         }
