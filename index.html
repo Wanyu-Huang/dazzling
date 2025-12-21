@@ -17,6 +17,14 @@
             overflow: hidden; /* 防止底部输入框滚动 */
         }
         
+        /* App容器 */
+        #app-container {
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
         /* 顶部导航栏 (Header) 
         .header {
             display: flex;
@@ -91,6 +99,8 @@
             flex-grow: 1;
             overflow-y: auto;
             position: relative;
+            min-height: 0;  /* 重要！让 flex-grow 在 overflow 容器中正常工作 */
+            box-sizing: border-box;
         }
 
         /* 聊天界面 */
@@ -178,6 +188,7 @@
 
         .page.active {
             display: flex;
+            height: 100vh;
         }
 
         /* 聊天输入区 */
@@ -1616,19 +1627,14 @@
                 displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "assistant");
             } else {
                 // 直接遍历气泡数组显示
-                chatHistory.forEach(bubble => {
+                // 前面的消息跳过滚动（skipScroll=true），最后一条正常滚动
+                chatHistory.forEach((bubble, index) => {
                     const status = bubble.role === 'user' ? 2 : 0; // 历史消息用户显示双勾
-                    displayMessage(bubble.content, bubble.role, status, bubble.timestamp, false, bubble.id); // false=不保存,传入buubble.id
+                    const isLast = index === chatHistory.length - 1;
+                    // skipScroll: 只有最后一条消息时才滚动
+                    displayMessage(bubble.content, bubble.role, status, bubble.timestamp, false, bubble.id, !isLast);
                 });
             }
-            
-            // 滚动到底部
-            setTimeout(() => {
-                const content = document.querySelector('.content');
-                if (content) {
-                    content.scrollTop = content.scrollHeight;
-                }
-            }, 100);
         }
 
 
@@ -1718,13 +1724,8 @@
                     console.log("内容匹配，保持当前界面状态");
                 }
                 
-                // 滚动到底部逻辑保持不变...
-                setTimeout(() => {
-                    const content = document.querySelector('.content');
-                    if (content) {
-                        content.scrollTop = content.scrollHeight;
-                    }
-                }, 100);
+                // 滚动到底部逻辑
+                scrollToBottom();
             }
         }
         /**
@@ -2264,7 +2265,7 @@
          * @param {boolean} saveToHistory - 是否保存到chatHistory（默认true）
          * @returns {object} 返回创建的气泡对象
          */
-        function displayMessage(text, role, status = 0, timestamp = null, saveToHistory = true, existingId = null) {
+        function displayMessage(text, role, status = 0, timestamp = null, saveToHistory = true, existingId = null, skipScroll = false) {
             // 生成时间戳
             const fullTimestamp = timestamp || new Date().toISOString();
             // 生成唯一ID
@@ -2325,6 +2326,11 @@
             
             // 添加长按菜单
             setupLongPressMenu(bubbleDiv, bubble);
+            
+            // 除非skipScroll=true，否则每条消息都滚动（这样AI消息跳出来时能看到）
+            if (!skipScroll) {
+                scrollToBottom();
+            }
             
             return bubble;
         }
@@ -2389,8 +2395,8 @@
             // 如果还有多余的空白，再清理一次
             cleaned = cleaned.trim();
             
-            console.log('🧹 清理前:', text.substring(0, 50));
-            console.log('🧹 清理后:', cleaned.substring(0, 50));
+            //console.log('🧹 清理前:', text.substring(0, 50));
+            //console.log('🧹 清理后:', cleaned.substring(0, 50));
             
             return cleaned;
         }
@@ -2408,7 +2414,7 @@
             const aiTimestamp = new Date().toISOString();
 
             // 2. 根据 '\n\n' 分割完整的响应文本
-            const messageSegments = fullAiText.split(separator);
+            const messageSegments = fullAiText.split(separator).filter(seg => seg.trim());
 
             // 3. 逐条遍历并使用 setTimeout 实现延迟显示
             messageSegments.forEach((segment, index) => {
@@ -2419,18 +2425,15 @@
                 if (cleanSegment.length > 0) {
                     // 实现延迟效果
                     setTimeout(() => {
-                        // displayMessage 会自动保存到 chatHistory 和 pendingSummaryBubbles
-                        displayMessage(cleanSegment, 'assistant', 0, aiTimestamp); 
+                        // 每条消息都显示（跳过scrollToBottom，因为displayMessage会自动调用）
+                        displayMessage(cleanSegment, 'assistant', 0, aiTimestamp, true, null, false); 
                     }, index * delay); 
                 }
             });
 
-            // 4. 在所有分段显示完毕后，处理最终的 UI 滚动或状态
+            // 4. 在所有分段显示完毕后，处理最终的状态
             const totalDelay = messageSegments.length * delay;
             setTimeout(() => {
-                // 确保滚动到最后一条消息
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                
                 // AI回复完成后，重置等待状态
                 isWaitingForAI = false;
                 console.log('✅ AI回复完成，等待状态已重置');
@@ -2551,7 +2554,7 @@
             aiBubble.textContent = '...'; // 加载指示
             aiMessagePlaceholder.appendChild(aiBubble);
             chatContainer.appendChild(aiMessagePlaceholder);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            scrollToBottom();
 
             // B. 获取用户设置的上下文窗口大小 (N)
             const contextSizeKey = 'contextWindowSize'; 
@@ -2683,33 +2686,19 @@
         /**
          *滚动到聊天内容底部（双 requestAnimationFrame 确保渲染完成）
          
+        /**
+         * 滚动到聊天内容底部
+         */
         function scrollToBottom() {
-            requestAnimationFrame(() => {
+            const activePage = document.querySelector('.page.active');
+            const contentArea = activePage ? activePage.querySelector('.content') : null;
+            
+            if (contentArea && contentArea.scrollHeight > 0) {
+                // 使用requestAnimationFrame确保DOM已渲染，然后立即滚动
                 requestAnimationFrame(() => {
-                    // ✅ 滚动 .content 容器，而不是 
-                    const contentArea = document.querySelector('.content');
-                    if (contentArea) {
-                        contentArea.scrollTop = contentArea.scrollHeight;
-                        console.log('滚动完成 - scrollTop:', contentArea.scrollTop, 'scrollHeight:', contentArea.scrollHeight);
-                    }
-                });
-            });
-        }*/
-        function scrollToBottom() {
-            // ✅ 增加延迟到 500ms，确保 .content 高度已经计算完成
-            setTimeout(() => {
-                const contentArea = document.querySelector('.content');
-                
-                if (contentArea) {
-                    console.log('准备滚动 .content');
-                    console.log('scrollHeight:', contentArea.scrollHeight);
-                    console.log('clientHeight:', contentArea.clientHeight);
-                    
                     contentArea.scrollTop = contentArea.scrollHeight;
-                    
-                    console.log('滚动后 scrollTop:', contentArea.scrollTop);
-                }
-            }, 200); 
+                });
+            }
         }
         // 监听 Enter 键发送 (可选)
         userInput.addEventListener('keydown', (e) => {
@@ -2720,6 +2709,63 @@
                 }
             }
         });
+        
+        /**
+         * 全局诊断函数 - 在console中调用来检查布局
+         */
+        window.debugLayout = function() {
+            console.log('========== 布局诊断报告 ==========');
+            
+            const body = document.body;
+            const appContainer = document.getElementById('app-container');
+            const activePage = document.querySelector('.page.active');
+            const contentArea = activePage ? activePage.querySelector('.content') : null;
+            const chatContainer = document.getElementById('chat-container');
+            
+            console.log('📱 Body:', {
+                height: body.style.height,
+                computedHeight: window.getComputedStyle(body).height,
+                overflow: window.getComputedStyle(body).overflow
+            });
+            
+            console.log('📦 App容器:', {
+                height: appContainer.style.height,
+                width: appContainer.style.width,
+                computedHeight: window.getComputedStyle(appContainer).height,
+                display: window.getComputedStyle(appContainer).display
+            });
+            
+            console.log('📄 活跃页面:', {
+                id: activePage ? activePage.id : '无',
+                height: activePage ? window.getComputedStyle(activePage).height : '无',
+                display: activePage ? window.getComputedStyle(activePage).display : '无',
+                flexGrow: activePage ? window.getComputedStyle(activePage).flexGrow : '无'
+            });
+            
+            console.log('📋 Content容器:', {
+                found: !!contentArea,
+                height: contentArea ? window.getComputedStyle(contentArea).height : '无',
+                scrollHeight: contentArea ? contentArea.scrollHeight : '无',
+                clientHeight: contentArea ? contentArea.clientHeight : '无',
+                offsetHeight: contentArea ? contentArea.offsetHeight : '无',
+                display: contentArea ? window.getComputedStyle(contentArea).display : '无',
+                overflow: contentArea ? window.getComputedStyle(contentArea).overflow : '无',
+                flexGrow: contentArea ? window.getComputedStyle(contentArea).flexGrow : '无',
+                minHeight: contentArea ? window.getComputedStyle(contentArea).minHeight : '无'
+            });
+            
+            console.log('💬 Chat容器:', {
+                height: chatContainer ? window.getComputedStyle(chatContainer).height : '无',
+                scrollHeight: chatContainer ? chatContainer.scrollHeight : '无',
+                childCount: chatContainer ? chatContainer.children.length : '无'
+            });
+            
+            console.log('================================');
+            console.log('💡 提示: 调用 window.scrollToBottom() 来手动滚动');
+        };
+        
+        console.log('✅ 调试工具已加载，在console中输入 debugLayout() 来检查布局');
+        
         
     </script>
 
