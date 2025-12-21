@@ -650,6 +650,26 @@
                     </p>
                 </div>
                 
+                <div style="margin-top: 15px;">
+                    <label for="api-timeout" style="display: block; margin-bottom: 5px;">
+                        API 超时时间（秒）：
+                    </label>
+                    
+                    <input 
+                        type="number" 
+                        id="api-timeout" 
+                        value="60" 
+                        min="10" 
+                        max="300" 
+                        style="width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;"
+                    >
+                    <span style="margin-left: 10px;">秒</span>
+                    
+                    <p style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                        * API 请求超过此时间未响应，将自动取消并重置状态。
+                    </p>
+                </div>
+                
                 <h3>数据管理</h3>
                 <div id="export-section">
                     <button id="export-btn">💾 导出聊天记录 (JSON)</button>
@@ -699,9 +719,10 @@
         
         // ========== 批量发送相关 ==========
         let pendingUserMessages = []; // 临时队列：存储本轮用户消息的气泡ID
-        let batchSendTimer = null; // 计时器
+        let batchSendTimer = null; // 批量发送计时器
         let isWaitingForAI = false; // 是否正在等待AI回复
         let hasReachedWaitTime = false; // 是否已达到等待时间（7秒）
+        let apiTimeoutTimer = null; // API超时计时器
         // =====================================
         
         // 从localStorage加载并自动转换格式
@@ -1513,8 +1534,13 @@
             const batchWaitTime = localStorage.getItem('batchWaitTime') || '7';
             document.getElementById('batch-wait-time').value = batchWaitTime;
             
+            // 加载API超时时间
+            const apiTimeout = localStorage.getItem('apiTimeout') || '60';
+            document.getElementById('api-timeout').value = apiTimeout;
+            
             console.log('📖 已加载上下文窗口大小:', contextWindowSize);
             console.log('📖 已加载批量等待时间:', batchWaitTime, '秒');
+            console.log('📖 已加载API超时时间:', apiTimeout, '秒');
         }
 
         /**
@@ -1662,8 +1688,13 @@
             const batchWaitTime = document.getElementById('batch-wait-time').value;
             localStorage.setItem('batchWaitTime', batchWaitTime);
             
+            // 保存API超时时间
+            const apiTimeout = document.getElementById('api-timeout').value;
+            localStorage.setItem('apiTimeout', apiTimeout);
+            
             console.log('💾 已保存上下文窗口大小:', contextWindowSize);
             console.log('💾 已保存批量等待时间:', batchWaitTime, '秒');
+            console.log('💾 已保存API超时时间:', apiTimeout, '秒');
             
             // 立即更新聊天页面标题
             updateChatName();
@@ -2549,6 +2580,47 @@
          * 调用API生成回复（从generateBtn.onclick中提取）
          */
         async function callAPIToGenerate() {
+            // 启动API超时计时器
+            const timeoutSeconds = parseInt(localStorage.getItem('apiTimeout')) || 60;
+            console.log('⏰ 启动API超时计时器:', timeoutSeconds, '秒');
+            
+            apiTimeoutTimer = setTimeout(() => {
+                console.error('⏰ API请求超时（', timeoutSeconds, '秒）');
+                
+                // 重置状态
+                isWaitingForAI = false;
+                hasReachedWaitTime = false;
+                hideTypingIndicator();
+                
+                // 移除加载占位符
+                const placeholder = chatContainer.querySelector('.message.ai .bubble');
+                if (placeholder && placeholder.textContent === '...') {
+                    placeholder.parentElement.remove();
+                }
+                
+                // 显示超时消息
+                const errorBubble = document.createElement('div');
+                errorBubble.classList.add('message', 'ai');
+                const bubble = document.createElement('div');
+                bubble.classList.add('bubble');
+                bubble.style.color = '#d32f2f';
+                bubble.textContent = `⏰ API 请求超时（${timeoutSeconds}秒未响应）。请检查网络连接或稍后重试。`;
+                errorBubble.appendChild(bubble);
+                chatContainer.appendChild(errorBubble);
+                scrollToBottom();
+                
+                // 检查队列，如果有消息可能需要重试
+                if (pendingUserMessages.length > 0) {
+                    if (hasReachedWaitTime) {
+                        console.log('📬 超时后发现待发送消息，准备重试');
+                        setTimeout(() => sendBatchMessages(), 100);
+                    } else {
+                        console.log('📬 超时后发现待发送消息，重启计时器');
+                        startBatchTimer();
+                    }
+                }
+            }, timeoutSeconds * 1000);
+            
             // 预留一个位置给 AI 的回复，用于流式响应或加载指示
             const aiMessagePlaceholder = document.createElement('div');
             aiMessagePlaceholder.classList.add('message', 'ai');
@@ -2633,13 +2705,29 @@
                 }
 
                 const data = await response.json();
+                
+                // 清除超时计时器
+                if (apiTimeoutTimer) {
+                    clearTimeout(apiTimeoutTimer);
+                    apiTimeoutTimer = null;
+                    console.log('✅ API响应成功，已清除超时计时器');
+                }
+                
+                // 安全访问API数据
+                if (!data || !data.choices || !data.choices[0] || 
+                    !data.choices[0].message || !data.choices[0].message.content) {
+                    throw new Error('API返回数据格式不正确: ' + JSON.stringify(data).substring(0, 200));
+                }
+                
                 let aiResponseText = data.choices[0].message.content.trim();
                 console.log("【API原始输出】:", encodeURI(aiResponseText).substring(0, 50));
                 aiResponseText = cleanApiResponse(aiResponseText);
                 console.log("【API清理后输出】:", encodeURI(aiResponseText).substring(0, 50));
                 
                 // 移除预留的占位符
-                chatContainer.removeChild(aiMessagePlaceholder);
+                if (chatContainer.contains(aiMessagePlaceholder)) {
+                    chatContainer.removeChild(aiMessagePlaceholder);
+                }
                 
                 // 隐藏"对方正在输入中..."
                 hideTypingIndicator();
@@ -2649,9 +2737,28 @@
 
             } catch (error) {
                 console.error("API 调用出错:", error);
+                
+                // 清除超时计时器
+                if (apiTimeoutTimer) {
+                    clearTimeout(apiTimeoutTimer);
+                    apiTimeoutTimer = null;
+                    console.log('❌ API调用出错，已清除超时计时器');
+                }
+                
                 aiBubble.textContent = `[错误] 无法获取回复。请检查您的设置和网络连接。详细错误：${error.message}`;
                 hideTypingIndicator();
                 isWaitingForAI = false;
+                
+                // 检查队列，如果有消息可能需要重试
+                if (pendingUserMessages.length > 0) {
+                    if (hasReachedWaitTime) {
+                        console.log('📬 错误后发现待发送消息，准备重试');
+                        setTimeout(() => sendBatchMessages(), 100);
+                    } else {
+                        console.log('📬 错误后发现待发送消息，重启计时器');
+                        startBatchTimer();
+                    }
+                }
             }
         }
         // ====================================
