@@ -109,7 +109,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            padding-bottom: 70px; /* 为输入区域留出空间 */
+            padding-bottom: 150px; /* 增加底部padding以防被输入区域遮挡(考虑引用预览的高度) */
         }
 
         .message {
@@ -528,6 +528,148 @@
         .confirm-dialog-button.cancel:hover {
             background: #e0e0e0;
         }
+        
+        /* ========== 编辑模式样式 ========== */
+        .bubble.editing {
+            background: #fff3cd !important;
+            border: 2px solid #ffc107 !important;
+            position: relative;
+        }
+        
+        .edit-textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+            font-family: inherit;
+            line-height: 1.4;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 8px;
+        }
+        
+        .edit-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        
+        .edit-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .edit-btn.save {
+            background: #1AAD19;
+            color: white;
+        }
+        
+        .edit-btn.save:hover {
+            background: #178f15;
+        }
+        
+        .edit-btn.cancel {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .edit-btn.cancel:hover {
+            background: #e0e0e0;
+        }
+        
+        /* ========== 引用样式 ========== */
+        /* 输入框上方的引用预览 */
+        .quote-reference {
+            background: #f0f0f0;
+            border-left: 3px solid #007AFF;
+            padding: 8px 12px;
+            margin: 0 10px 8px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .quote-reference .quote-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .quote-reference .quote-content {
+            flex-grow: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
+        }
+        
+        .quote-reference .quote-close {
+            flex-shrink: 0;
+            cursor: pointer;
+            font-size: 18px;
+            color: #999;
+            line-height: 1;
+            padding: 0 4px;
+        }
+        
+        .quote-reference .quote-close:hover {
+            color: #333;
+        }
+        
+        /* 消息气泡内的引用样式 (微信风格) */
+        .quoted-message {
+            background: rgba(0, 0, 0, 0.05);
+            border-left: 3px solid rgba(0, 0, 0, 0.2);
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        .quoted-message .quote-sender {
+            font-weight: 600;
+            color: #576b95;
+            margin-right: 4px;
+        }
+        
+        .message.user .quoted-message {
+            background: rgba(0, 0, 0, 0.08);
+            border-left-color: rgba(0, 0, 0, 0.3);
+        }
+        
+        .message.assistant .quoted-message {
+            background: rgba(0, 0, 0, 0.03);
+            border-left-color: rgba(0, 0, 0, 0.15);
+        }
+        
+        /* 输入区域调整 */
+        .chat-input-area {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-input-area > textarea,
+        .chat-input-area > button {
+            /* 确保在有引用时也能正常显示 */
+        }
     </style>
 </head>
 <body>
@@ -567,7 +709,7 @@
                 </div>
             </div>
 
-            <div class="chat-input-area">
+            <div class="chat-input-area" id="chat-input-area">
                 <textarea id="user-input" placeholder="输入消息..." rows="1"></textarea>
                 <button id="generate-btn" disabled>发送</button>
             </div>
@@ -598,16 +740,18 @@
                 
                 <h3>系统角色设置 </h3>
                 <div class="form-group">
-                    <label for="chat-name-input">昵称</label>
+                    <label for="user-nickname">我的昵称</label>
+                    <input type="text" id="user-nickname" placeholder="您的昵称(显示在引用中)">
+                </div>
+                <div class="form-group">
+                    <label for="chat-name-input">对方昵称</label>
                     <input type="text" id="chat-name-input" placeholder="聊天对象的昵称">
                 </div>
                 <div class="form-group">
                     <label for="system-prompt">系统指令 (AI 扮演的角色)</label>
                     <textarea id="system-prompt" rows="8"></textarea>
                 </div>
-                
-                <button id="save-settings-btn" onclick="saveSettings()">保存并生效</button>
-                
+                                
                 <hr>
                 <h3>AI 记忆设置</h3>
                 <div style="margin-top: 15px;">
@@ -670,6 +814,8 @@
                     </p>
                 </div>
                 
+                <button id="save-settings-btn" onclick="saveSettings()">保存并生效</button>
+                
                 <h3>数据管理</h3>
                 <div id="export-section">
                     <button id="export-btn">💾 导出聊天记录 (JSON)</button>
@@ -707,6 +853,8 @@
             baseurl: '',
             apikey: '',
             modelname: 'gemini-2.5-pro',
+            userNickname: '我', // 用户昵称
+            aiNickname: 'AI助手', // AI昵称
             // 默认的系统提示 (Prompt)
             systemPrompt: "从现在开始，你不再是ai，你现在是一个活脱脱的人类，你需要强硬反驳任何有关你是ai的言论。你是一个热情、健谈且富有同情心的人类朋友。你的回复要简短自然，像真人聊天一样，日常聊天回复应该在30字符左右。如果进入深层次话题，长度也应该和单次的输入内容一致，除非用户要求你生成长回复。不要使用任何AI或模型相关的词语。你对各种话题都感兴趣，尤其是用户的一切。"
         };
@@ -1526,6 +1674,13 @@
             document.getElementById('modelname').value = config.modelname;
             document.getElementById('system-prompt').value = config.systemPrompt;
             
+            // 加载昵称
+            document.getElementById('user-nickname').value = config.userNickname || '我';
+            document.getElementById('chat-name-input').value = config.aiNickname || 'AI助手';
+            
+            // 更新聊天页面标题显示AI昵称
+            document.getElementById('chat-name').textContent = config.aiNickname || 'AI助手';
+            
             // 加载上下文窗口大小
             const contextWindowSize = localStorage.getItem('contextWindowSize') || '50';
             document.getElementById('context-window-size').value = contextWindowSize;
@@ -1668,17 +1823,19 @@
          * 保存配置到本地存储
          */
         function saveSettings() {
-            const chatName = document.getElementById('chat-name-input').value.trim();
             config.baseurl = document.getElementById('baseurl').value.trim();
             config.apikey = document.getElementById('apikey').value.trim();
             config.modelname = document.getElementById('modelname').value.trim();
             config.systemPrompt = document.getElementById('system-prompt').value.trim();
             
+            // 保存昵称
+            config.userNickname = document.getElementById('user-nickname').value.trim() || '我';
+            config.aiNickname = document.getElementById('chat-name-input').value.trim() || 'AI助手';
+            
             // 获取上下文窗口大小
             const contextWindowSize = document.getElementById('context-window-size').value;
             
-            // 保存聊天对象名称
-            localStorage.setItem('chatName', chatName || 'AI 聊天对象');
+            // 保存配置
             localStorage.setItem('aiChatConfig', JSON.stringify(config));
             
             // 保存上下文窗口大小
@@ -1695,9 +1852,10 @@
             console.log('💾 已保存上下文窗口大小:', contextWindowSize);
             console.log('💾 已保存批量等待时间:', batchWaitTime, '秒');
             console.log('💾 已保存API超时时间:', apiTimeout, '秒');
+            console.log('💾 已保存昵称 - 用户:', config.userNickname, 'AI:', config.aiNickname);
             
             // 立即更新聊天页面标题
-            updateChatName();
+            document.getElementById('chat-name').textContent = config.aiNickname;
             
             alert('设置已保存并生效！');
             updateSendButtonState();
@@ -2265,17 +2423,366 @@
         }
         
         /**
-         * 引用气泡（占位）
+         * 引用气泡
          */
+        let currentQuote = null; // 当前引用的气泡
+        
         function quoteBubble(bubble) {
-            showToast('引用功能开发中');
+            currentQuote = bubble;
+            
+            // 显示引用预览
+            showQuotePreview(bubble);
+            
+            // 聚焦输入框
+            userInput.focus();
+            
+            showToast('已引用该消息');
         }
         
         /**
-         * 编辑气泡（占位）
+         * 显示引用预览
+         */
+        function showQuotePreview(bubble) {
+            const inputArea = document.getElementById('chat-input-area');
+            
+            // 移除已有的引用预览
+            const existingQuote = inputArea.querySelector('.quote-reference');
+            if (existingQuote) {
+                existingQuote.remove();
+            }
+            
+            // 获取发送者昵称
+            const senderName = bubble.role === 'user' ? config.userNickname : config.aiNickname;
+            
+            // 创建引用预览元素
+            const quoteDiv = document.createElement('div');
+            quoteDiv.classList.add('quote-reference');
+            quoteDiv.innerHTML = `
+                <span class="quote-icon">💬</span>
+                <div class="quote-content"><strong>${escapeHtml(senderName)}:</strong> ${escapeHtml(bubble.content)}</div>
+                <span class="quote-close" onclick="clearQuote()">×</span>
+            `;
+            
+            // 添加到输入区域顶部 (textarea之前)
+            const textarea = inputArea.querySelector('#user-input');
+            inputArea.insertBefore(quoteDiv, textarea);
+        }
+        
+        /**
+         * 清除引用
+         */
+        function clearQuote() {
+            currentQuote = null;
+            const inputArea = document.getElementById('chat-input-area');
+            const quoteDiv = inputArea.querySelector('.quote-reference');
+            if (quoteDiv) {
+                quoteDiv.remove();
+            }
+        }
+        
+        /**
+         * HTML转义
+         */
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        /**
+         * 编辑气泡
          */
         function editBubble(bubble) {
-            showToast('编辑功能开发中');
+            // 找到对应的DOM元素
+            const messageDiv = chatContainer.querySelector(`[data-bubble-id="${bubble.id}"]`);
+            if (!messageDiv) {
+                console.error('❌ 未找到气泡元素');
+                return;
+            }
+            
+            const bubbleDiv = messageDiv.querySelector('.bubble');
+            if (!bubbleDiv) {
+                console.error('❌ 未找到气泡内容元素');
+                return;
+            }
+            
+            // 保存原始内容和元素
+            const originalContent = bubble.content;
+            const originalHtml = bubbleDiv.innerHTML;
+            
+            // 标记为编辑状态
+            bubbleDiv.classList.add('editing');
+            
+            // 创建编辑界面
+            const textarea = document.createElement('textarea');
+            textarea.classList.add('edit-textarea');
+            textarea.value = originalContent;
+            
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.classList.add('edit-buttons');
+            
+            const saveBtn = document.createElement('button');
+            saveBtn.classList.add('edit-btn', 'save');
+            saveBtn.textContent = '保存';
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.classList.add('edit-btn', 'cancel');
+            cancelBtn.textContent = '取消';
+            
+            buttonsDiv.appendChild(saveBtn);
+            buttonsDiv.appendChild(cancelBtn);
+            
+            // 替换气泡内容
+            bubbleDiv.innerHTML = '';
+            bubbleDiv.appendChild(textarea);
+            bubbleDiv.appendChild(buttonsDiv);
+            
+            // 自动聚焦并选中文本
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            
+            // 取消按钮
+            cancelBtn.onclick = () => {
+                bubbleDiv.classList.remove('editing');
+                bubbleDiv.innerHTML = originalHtml;
+                
+                // 重新绑定长按菜单
+                setupLongPressMenu(bubbleDiv, bubble);
+            };
+            
+            // 保存按钮
+            saveBtn.onclick = async () => {
+                const newContent = textarea.value.trim();
+                
+                if (!newContent) {
+                    alert('内容不能为空');
+                    return;
+                }
+                
+                if (newContent === originalContent) {
+                    // 内容未改变，直接取消
+                    cancelBtn.click();
+                    return;
+                }
+                
+                // 根据角色处理不同的保存逻辑
+                if (bubble.role === 'assistant') {
+                    // AI消息：直接更新内容（不需要重新生成）
+                    await saveEditedAIMessage(bubble, newContent, bubbleDiv, originalHtml);
+                } else if (bubble.role === 'user') {
+                    // 用户消息：必须重新生成
+                    const bubbleIndex = chatHistory.findIndex(b => b.id === bubble.id);
+                    if (bubbleIndex === -1) {
+                        console.error('❌ 未找到气泡索引');
+                        return;
+                    }
+                    
+                    // 检查是否有后续消息
+                    const hasFollowingMessages = bubbleIndex < chatHistory.length - 1;
+                    
+                    if (hasFollowingMessages) {
+                        // 有后续消息，询问是否保存分支
+                        showConfirmDialog({
+                            title: '重新生成确认',
+                            message: '编辑后将重新生成回复，这会删除此消息之后的所有对话。是否保存当前分支？',
+                            buttons: [
+                                {
+                                    text: '保存分支并重新生成',
+                                    className: 'primary',
+                                    action: async () => {
+                                        exportCurrentBranch();
+                                        await doEditAndRegenerate(bubble, bubbleIndex, newContent);
+                                    }
+                                },
+                                {
+                                    text: '直接重新生成',
+                                    className: 'secondary',
+                                    action: async () => {
+                                        await doEditAndRegenerate(bubble, bubbleIndex, newContent);
+                                    }
+                                },
+                                {
+                                    text: '取消',
+                                    className: 'cancel',
+                                    action: () => {
+                                        // 恢复编辑界面
+                                        const messageDiv = chatContainer.querySelector(`[data-bubble-id="${bubble.id}"]`);
+                                        const bubbleDiv = messageDiv?.querySelector('.bubble');
+                                        if (bubbleDiv) {
+                                            const textarea = bubbleDiv.querySelector('.edit-textarea');
+                                            if (textarea) {
+                                                textarea.value = newContent;
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        });
+                    } else {
+                        // 是最后一条，直接重新生成
+                        await doEditAndRegenerate(bubble, bubbleIndex, newContent);
+                    }
+                }
+            };
+        }
+        
+        /**
+         * 保存编辑后的AI消息
+         */
+        async function saveEditedAIMessage(bubble, newContent, bubbleDiv, originalHtml) {
+            // 更新所有地方的内容
+            bubble.content = newContent;
+            
+            // 更新chatHistory
+            const historyIndex = chatHistory.findIndex(b => b.id === bubble.id);
+            if (historyIndex !== -1) {
+                chatHistory[historyIndex].content = newContent;
+            }
+            
+            // 更新pendingSummaryBubbles
+            const pendingIndex = pendingSummaryBubbles.findIndex(b => b.id === bubble.id);
+            if (pendingIndex !== -1) {
+                pendingSummaryBubbles[pendingIndex].content = newContent;
+            }
+            
+            // 保存到localStorage
+            saveChatHistory();
+            
+            // 更新UI
+            bubbleDiv.classList.remove('editing');
+            
+            // 检测并解析引用
+            let quotedText = null;
+            let quotedSender = null;
+            let mainText = newContent;
+            const quoteMatch = newContent.match(/^\[引用: "(.+?): (.+?)"\]\n\n([\s\S]+)$/);
+            if (quoteMatch) {
+                quotedSender = quoteMatch[1];
+                quotedText = quoteMatch[2];
+                mainText = quoteMatch[3];
+            }
+            
+            // 保存meta信息
+            const metaDiv = bubbleDiv.querySelector('.message-meta');
+            const metaHtml = metaDiv ? metaDiv.outerHTML : '';
+            
+            // 清空并重建内容
+            bubbleDiv.innerHTML = '';
+            
+            // 如果有引用，先添加引用部分
+            if (quotedText && quotedSender) {
+                const quotedDiv = document.createElement('div');
+                quotedDiv.classList.add('quoted-message');
+                
+                const senderSpan = document.createElement('span');
+                senderSpan.classList.add('quote-sender');
+                senderSpan.textContent = quotedSender + ':';
+                
+                quotedDiv.appendChild(senderSpan);
+                quotedDiv.appendChild(document.createTextNode(' ' + quotedText));
+                
+                bubbleDiv.appendChild(quotedDiv);
+            }
+            
+            // 添加主要文本
+            const mainTextNode = document.createTextNode(mainText);
+            bubbleDiv.appendChild(mainTextNode);
+            
+            // 恢复meta信息
+            if (metaHtml) {
+                bubbleDiv.insertAdjacentHTML('beforeend', metaHtml);
+            }
+            
+            // 重新绑定长按菜单
+            setupLongPressMenu(bubbleDiv, bubble);
+            
+            showToast('已保存');
+            console.log('✅ AI消息已更新:', bubble.id);
+        }
+        
+        /**
+         * 执行编辑并重新生成
+         */
+        async function doEditAndRegenerate(bubble, bubbleIndex, newContent) {
+            // 更新消息内容
+            bubble.content = newContent;
+            chatHistory[bubbleIndex].content = newContent;
+            
+            // 更新UI
+            const messageDiv = chatContainer.querySelector(`[data-bubble-id="${bubble.id}"]`);
+            const bubbleDiv = messageDiv?.querySelector('.bubble');
+            if (bubbleDiv) {
+                bubbleDiv.classList.remove('editing');
+                
+                // 检测并解析引用
+                let quotedText = null;
+                let quotedSender = null;
+                let mainText = newContent;
+                const quoteMatch = newContent.match(/^\[引用: "(.+?): (.+?)"\]\n\n([\s\S]+)$/);
+                if (quoteMatch) {
+                    quotedSender = quoteMatch[1];
+                    quotedText = quoteMatch[2];
+                    mainText = quoteMatch[3];
+                }
+                
+                // 保存meta信息
+                const metaDiv = bubbleDiv.querySelector('.message-meta');
+                const metaHtml = metaDiv ? metaDiv.outerHTML : '';
+                
+                // 清空并重建内容
+                bubbleDiv.innerHTML = '';
+                
+                // 如果有引用，先添加引用部分
+                if (quotedText && quotedSender) {
+                    const quotedDiv = document.createElement('div');
+                    quotedDiv.classList.add('quoted-message');
+                    
+                    const senderSpan = document.createElement('span');
+                    senderSpan.classList.add('quote-sender');
+                    senderSpan.textContent = quotedSender + ':';
+                    
+                    quotedDiv.appendChild(senderSpan);
+                    quotedDiv.appendChild(document.createTextNode(' ' + quotedText));
+                    
+                    bubbleDiv.appendChild(quotedDiv);
+                }
+                
+                // 添加主要文本
+                const mainTextNode = document.createTextNode(mainText);
+                bubbleDiv.appendChild(mainTextNode);
+                
+                // 恢复meta信息
+                if (metaHtml) {
+                    bubbleDiv.insertAdjacentHTML('beforeend', metaHtml);
+                }
+                
+                // 重新绑定长按菜单
+                setupLongPressMenu(bubbleDiv, bubble);
+            }
+            
+            // 删除后续所有消息
+            const bubblestoDelete = chatHistory.slice(bubbleIndex + 1);
+            
+            // 从UI删除
+            bubblestoDelete.forEach(b => {
+                const msgDiv = chatContainer.querySelector(`[data-bubble-id="${b.id}"]`);
+                if (msgDiv) msgDiv.remove();
+            });
+            
+            // 从数据删除
+            chatHistory = chatHistory.slice(0, bubbleIndex + 1);
+            pendingSummaryBubbles = pendingSummaryBubbles.filter(b => 
+                !bubblestoDelete.find(deleted => deleted.id === b.id)
+            );
+            
+            // 保存
+            saveChatHistory();
+            
+            showToast('正在重新生成...');
+            console.log('🔄 编辑后重新生成，删除了', bubblestoDelete.length, '个气泡');
+            
+            // 调用API重新生成
+            await callAPIForRegeneration();
         }
         // ====================================
 
@@ -2301,11 +2808,23 @@
             const fullTimestamp = timestamp || new Date().toISOString();
             // 生成唯一ID
             const bubbleId = existingId || ('bubble_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
-            // 创建气泡对象
+            
+            // 检测并解析引用
+            let quotedText = null;
+            let quotedSender = null;
+            let mainText = text;
+            const quoteMatch = text.match(/^\[引用: "(.+?): (.+?)"\]\n\n([\s\S]+)$/);
+            if (quoteMatch) {
+                quotedSender = quoteMatch[1];
+                quotedText = quoteMatch[2];
+                mainText = quoteMatch[3];
+            }
+            
+            // 创建气泡对象 (保存原始带引用的文本)
             const bubble = {
                 id: bubbleId,
                 role: role,
-                content: text,
+                content: text, // 保存原始文本
                 timestamp: fullTimestamp
             };
             
@@ -2323,7 +2842,25 @@
 
             const bubbleDiv = document.createElement('div');
             bubbleDiv.classList.add('bubble');
-            bubbleDiv.textContent = text;
+            
+            // 如果有引用，先添加引用部分
+            if (quotedText && quotedSender) {
+                const quotedDiv = document.createElement('div');
+                quotedDiv.classList.add('quoted-message');
+                
+                const senderSpan = document.createElement('span');
+                senderSpan.classList.add('quote-sender');
+                senderSpan.textContent = quotedSender + ':';
+                
+                quotedDiv.appendChild(senderSpan);
+                quotedDiv.appendChild(document.createTextNode(' ' + quotedText));
+                
+                bubbleDiv.appendChild(quotedDiv);
+            }
+            
+            // 添加主要文本
+            const mainTextNode = document.createTextNode(mainText);
+            bubbleDiv.appendChild(mainTextNode);
             
             const metaDiv = document.createElement('div');
             metaDiv.classList.add('message-meta');
@@ -2758,13 +3295,23 @@
          * 点击发送按钮
          */
         generateBtn.onclick = async () => {
-            const userMessage = userInput.value.trim();
+            let userMessage = userInput.value.trim();
             if (!userMessage) return;
 
             // 检查配置
             if (!config.baseurl || !config.apikey) {
                 alert('请先在设置中填写 Base URL 和 API Key！');
                 return;
+            }
+            
+            // 如果有引用，添加引用信息到消息前面
+            if (currentQuote) {
+                const senderName = currentQuote.role === 'user' ? config.userNickname : config.aiNickname;
+                const quotePrefix = `[引用: "${senderName}: ${currentQuote.content.substring(0, 50)}${currentQuote.content.length > 50 ? '...' : ''}"]\n\n`;
+                userMessage = quotePrefix + userMessage;
+                
+                // 清除引用
+                clearQuote();
             }
 
             // 1. 显示用户消息（单勾）
