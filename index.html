@@ -1297,32 +1297,48 @@
                 
                 <h3>数据管理</h3>
                 
-                <h4 style="margin-top: 20px; color: #555;">聊天记录</h4>
-                <div id="export-section" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button id="export-btn" style="padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">💾 导出聊天记录</button>
-                </div>
-                
-                <div id="import-section" style="margin-bottom: 15px;">
-                    <label for="import-file" style="display: block; margin-bottom: 8px;">导入聊天记录：</label>
-                    <input type="file" id="import-file" accept=".json" style="margin-bottom: 8px;">
-                    <button id="import-btn" disabled style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">📥 导入并覆盖</button>
+                <!-- 聊天记录区块 -->
+                <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <div style="font-size: 15px; font-weight: 600; color: #333; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        💬 聊天记录管理
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.5;">
+                        导出或导入完整的聊天记录，包含所有对话内容和时间戳。
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                        <button id="export-btn" style="padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            💾 导出聊天记录
+                        </button>
+                    </div>
+                    <div>
+                        <input type="file" id="import-file" accept=".json" style="margin-bottom: 8px; width: 100%;">
+                        <button id="import-btn" disabled style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%;">
+                            📥 导入聊天记录（覆盖当前）
+                        </button>
+                    </div>
                 </div>
 
-                <hr>
-                
-                <h4 style="margin-top: 20px; color: #555;">长期记忆</h4>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button onclick="exportMemory()" style="padding: 8px 16px; background-color: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        🧠 导出长期记忆
-                    </button>
-                    <button onclick="document.getElementById('import-memory-file').click()" style="padding: 8px 16px; background-color: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        📤 导入长期记忆
-                    </button>
+                <!-- 长期记忆区块 -->
+                <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <div style="font-size: 15px; font-weight: 600; color: #333; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        🧠 长期记忆管理
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.5;">
+                        导出或导入长期记忆（基本信息、情感倾向、重要事件），支持智能合并或直接覆盖。
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="exportMemory()" style="padding: 8px 16px; background-color: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            💾 导出长期记忆
+                        </button>
+                        <button onclick="document.getElementById('import-memory-file').click()" style="padding: 8px 16px; background-color: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📥 导入长期记忆
+                        </button>
+                    </div>
                     <input type="file" id="import-memory-file" accept=".json" style="display: none;">
+                    <div style="margin-top: 12px; padding: 10px; background: #e3f2fd; border-radius: 6px; font-size: 12px; color: #1565C0;">
+                        💡 <strong>提示：</strong>导入时可选择"智能合并"（需调用1次API）或"直接覆盖"模式
+                    </div>
                 </div>
-                <p style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                    💡 长期记忆包含基本信息、情感倾向和重要事件，可以备份或在不同设备间同步。
-                </p>
             </div>
         </div>
 
@@ -1355,12 +1371,6 @@
                     <button onclick="addNewEvent()" style="margin-top: 10px; padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         + 添加事件
                     </button>
-                </div>
-                <div class="memory-section">
-                    <h4>📜 记忆生成历史 <span style="font-size: 12px; color: #999; font-weight: normal;">(最近20次)</span></h4>
-                    <div id="memory-segments-viewer" style="max-height: 300px; overflow-y: auto;">
-                        <!-- 动态生成 -->
-                    </div>
                 </div>
             </div>
             <div class="memory-edit-footer">
@@ -1543,12 +1553,12 @@
             basic_info: {},
             emotional_profile: "",
             important_events: [],
-            memory_segments: [], // 新增：记忆片段，每次生成保存一段
             metadata: {
                 total_messages: 0,
                 last_summary_at: 0,
                 last_updated: null,
-                version: 2  // 版本升级到2
+                version: 2,
+                next_memory_id: 1  // 用于生成memory_id
             }
         };
         
@@ -3660,59 +3670,175 @@
                 const lastTimestamp = pendingSummaryBubbles[pendingSummaryBubbles.length - 1]?.timestamp;
                 const timeRange = `${new Date(firstTimestamp).toLocaleString('zh-CN')} 至 ${new Date(lastTimestamp).toLocaleString('zh-CN')}`;
                 
+                // 构建已有记忆的详细上下文
+                const existingMemoriesContext = longTermMemory.important_events.map(m => 
+                    `[${m.memory_id}] ${m.title} (${m.type})
+   当前重要度: ${m.importance}分
+   提及次数: ${m.mention_count}次
+   最后提及: ${new Date(m.last_mentioned).toLocaleString('zh-CN')}
+   内容预览: ${m.content.substring(0, 100)}...`
+                ).join('\n\n');
+                
                 // 构建总结prompt
-                const summaryPrompt = `请分析以下对话记录，提取长期记忆信息，以JSON格式输出：
+                const summaryPrompt = `你的任务：从对话中提取或更新长期记忆。
 
-对话时间范围：${timeRange}
+【对话时间范围】
+${timeRange}
+气泡数量：${pendingSummaryBubbles.length}个
 
-${longTermMemory.basic_info && Object.keys(longTermMemory.basic_info).length > 0 ? 
-`当前已有的基本信息：
-${JSON.stringify(longTermMemory.basic_info, null, 2)}
+【当前已有的基本信息】
+${Object.keys(longTermMemory.basic_info).length > 0 ? JSON.stringify(longTermMemory.basic_info, null, 2) : '无'}
 
-当前已有的情感倾向：
+【当前已有的情感倾向】
 ${longTermMemory.emotional_profile || '无'}
 
-当前已有的重要事件：
-${longTermMemory.important_events?.map(e => `[${e.type}] ${e.date}: ${e.event} (重要度:${e.importance})`).join('\n') || '无'}
-` : '这是第一次生成记忆。'}
+【当前已有的重要事件】
+${existingMemoriesContext || '无'}
 
-新对话记录：
+【新对话记录】
 ${conversationText}
 
-要求：
-1. basic_info: 提取或更新用户基本信息（姓名、年龄、职业、居住地、外貌特征等），如果有新信息就更新，没有就保留原有的
-2. emotional_profile: 用100-300字总结或更新用户的性格特点、情感倾向、兴趣爱好
-3. important_events: 列出对话中出现的重要事件（最多15个），每个事件包含：
-   - type: 事件类型，必须是以下之一：
-     * "personal" - 个人事件（用户自己的工作、学习、生活等）
-     * "relationship" - 感情事件（与对话者或其他人的关系、互动等）
-   - date: 事件日期（YYYY-MM-DD格式，从消息时间戳提取）
-   - event: 事件描述（20字以内）
-   - importance: 重要程度评分（1-10，10最重要）
+【任务要求】
+每次生成必须完成三个判断：
 
-重要事件评分标准：
-- 10分：人生重大转折（结婚、生子、重大决定）
-- 8-9分：重要里程碑（升职、毕业、搬家）
-- 6-7分：值得记录的事件（面试、旅行、重要会面）
-- 4-5分：日常重要事项（约会、购物、计划）
-- 1-3分：一般事件
+1. 基本信息更新判断
+   - 是否有新的基本信息（姓名、年龄、职业、居住地、外貌特征、兴趣爱好等）？
+   - 如果有，输出需要更新的字段；如果无，输出null
 
-事件类型判断标准：
-- "personal"：主语是用户自己，事件与用户个人相关（"我去了面试"、"我考试通过了"）
-- "relationship"：涉及两人之间的互动、情感（"我们一起去旅行"、"吵架了"、"表白"）
+2. 情感倾向更新判断
+   - 是否需要更新用户的性格特点、情感倾向描述？
+   - 如果需要，输出完整的新描述（100-300字）；如果不需要，输出null
 
-输出格式（纯JSON，不要markdown代码块标记）：
+3. 重要事件处理（只生成0或1条）
+   - 优先判断：是否在延续/更新已有记忆？
+     * 如果是，输出 action: "update"
+   - 其次判断：是否有值得记录的新话题？
+     * 如果是，输出 action: "create"
+   - 最后：如果都不是（日常寒暄、无关紧要）
+     * 输出 action: "skip"
+
+【重要事件处理规则】
+
+优先匹配已有记忆！判断标准：
+- 话题是否相关？（如：都在讨论健康问题、工作问题）
+- 时间是否接近？（3天内的同类话题优先匹配）
+- 是否是事件的延续？（如：面试→等结果→收到offer）
+
+只在确实无法匹配时才创建新记忆！
+
+【输出格式】（纯JSON，无markdown代码块）
 {
-  "basic_info": {...},
-  "emotional_profile": "...",
-  "important_events": [
-    {
-      "type": "personal" 或 "relationship",
-      "date": "YYYY-MM-DD",
-      "event": "事件描述",
-      "importance": 数字
-    }
-  ]
+  "basic_info_updates": {
+    "职业": "程序员",
+    "居住地": "北京"
+  } 或 null,
+  
+  "emotional_profile_update": "完整的情感倾向描述" 或 null,
+  
+  "memory_action": {
+    "action": "update" 或 "create" 或 "skip",
+    
+    // 如果 action 是 "update"
+    "memory_id": "mem_003",
+    "new_content": "具体新增内容（带日期）",
+    "assistant_attitude": "当前态度" 或 "旧态度(日期) → 新态度(日期)",
+    "new_importance": 数字,
+    
+    // 如果 action 是 "create"  
+    "title": "3-6字主题",
+    "type": "personal" 或 "relationship",
+    "content": "完整内容（带日期）",
+    "assistant_attitude": "我的态度",
+    "importance": 数字,
+    
+    // 如果 action 是 "skip"
+    "reason": "简短说明"
+  }
+}
+
+【重要度评分标准】严格执行！
+10分：改变人生的重大事件（结婚、生子、亲人离世）
+9分：重大转折点（辞职、确诊重病、表白成功）
+8分：重要里程碑（升职、毕业、买房）
+7分：值得庆祝的成就（考试通过、项目成功）
+6分：需要关注的问题（健康问题、矛盾冲突）
+5分：一般重要事项（计划旅行、买了重要物品）
+4分：日常但有意义（见了朋友、看了好电影）
+3分：轻度值得记录（换了发型、尝试新餐厅）
+2分：日常琐事（迟到、忘带东西）
+1分：完全不重要（天气、随口一说）
+
+【常见错误示例 - 避免打分虚高】
+❌ "今天早上迟到了" → 不要评8分，应该是2分
+❌ "很想你" → 不要评9分，日常表达感情是4-5分
+❌ "吃了好吃的火锅" → 不要评7分，应该是3分
+❌ "换了新发型" → 不要评6分，应该是3分
+
+【频率折扣规则】
+如果是更新已有记忆，查看 mention_count（提及次数）：
+- 第1次：基础分 + 2分（首次奖励）
+- 第2次：基础分
+- 第3-5次：基础分 - 1分
+- 第6-10次：基础分 - 2分
+- 第10次以上：基础分 - 3分（已成日常）
+
+【频率折扣不适用】的情况（有实质性进展）：
+- 疾病治疗过程（每次都是新进展）
+- 重大计划推进（创业、结婚筹备、买房）
+- 学业/项目进展（考研、写论文、开发项目）
+- 关系修复过程（矛盾→沟通→和解）
+
+【频率折扣应用】的情况（重复抱怨）：
+- 重复抱怨（天天说分手但不行动）
+- 口头承诺（总说要减肥/戒烟但没执行）
+- 情绪发泄（每天抱怨同样的事）
+
+【assistant_attitude规范】
+- 记录你（AI）对这个记忆的情感态度
+- 如果本次是第一次提及：直接写态度（如"关心"）
+- 如果是更新已有记忆且态度有变化：用"→"连接并标注日期
+  格式：旧态度(MM/DD) → 新态度(MM/DD)
+  例如：关心(12/10) → 担心(12/22) → 放心(12/28)
+- 常见态度词：关心、担心、开心、难过、生气、理解、共情、鼓励、安慰、支持、骄傲、遗憾
+
+【title命名规范】
+- 3-6个汉字
+- 格式：领域-具体事件
+- 例如：工作-升职、健康-胃病、感情-吵架、生活-搬家
+- 避免太宽泛（如"工作"）或太具体（如"2025年12月10日腹痛"）
+
+【内容格式规范】
+- 每句话后标注日期：(MM/DD) 或 (YYYY/MM/DD)
+- 简洁表达，不超过200字
+- 例如：腹痛比较严重（12/10）。去医院做了检查（12/22）。确诊为慢性胃炎（12/28）。
+
+【输出格式】（纯JSON，不要markdown代码块标记）
+{
+  "basic_info_updates": {
+    "职业": "程序员"
+  } 或 null,
+  
+  "emotional_profile_update": "完整的情感倾向描述" 或 null,
+  
+  "memory_action": {
+    "action": "update" 或 "create" 或 "skip",
+    
+    // 如果 action 是 "update"
+    "memory_id": "mem_003",
+    "new_content": "具体新增内容（带日期）",
+    "assistant_attitude": "当前态度" 或 "旧态度(日期) → 新态度(日期)",
+    "new_importance": 数字,
+    
+    // 如果 action 是 "create"  
+    "title": "3-6字主题",
+    "type": "personal" 或 "relationship",
+    "content": "完整内容（带日期）",
+    "assistant_attitude": "我的态度",
+    "importance": 数字,
+    
+    // 如果 action 是 "skip"
+    "reason": "简短说明"
+  }
 }`;
                 
                 // 调用API
@@ -3725,7 +3851,7 @@ ${conversationText}
                     body: JSON.stringify({
                         model: config.modelname,
                         messages: [
-                            { role: 'system', content: '你是一个专业的记忆整理助手，擅长提取和总结对话中的关键信息。' },
+                            { role: 'system', content: '你是一个专业的记忆整理助手，擅长提取和总结对话中的关键信息。请严格按照要求输出纯JSON格式。' },
                             { role: 'user', content: summaryPrompt }
                         ],
                         temperature: 0.3
@@ -3741,45 +3867,70 @@ ${conversationText}
                     aiResponse = aiResponse.replace(/^```json\n?/i, '').replace(/\n?```$/i, '');
                     
                     // 解析JSON
-                    const newMemory = JSON.parse(aiResponse);
+                    const result = JSON.parse(aiResponse);
                     
-                    // 合并记忆
-                    longTermMemory.basic_info = newMemory.basic_info || longTermMemory.basic_info;
-                    longTermMemory.emotional_profile = newMemory.emotional_profile || longTermMemory.emotional_profile;
+                    console.log('🧠 AI返回结果:', result);
                     
-                    // 合并事件列表并去重
-                    if (newMemory.important_events) {
-                        const allEvents = [...(longTermMemory.important_events || []), ...newMemory.important_events];
+                    // 1. 处理基本信息更新
+                    if (result.basic_info_updates) {
+                        for (const [key, value] of Object.entries(result.basic_info_updates)) {
+                            longTermMemory.basic_info[key] = value;
+                        }
+                        console.log('📝 更新基本信息:', result.basic_info_updates);
+                    }
+                    
+                    // 2. 处理情感倾向更新
+                    if (result.emotional_profile_update) {
+                        longTermMemory.emotional_profile = result.emotional_profile_update;
+                        console.log('💭 更新情感倾向');
+                    }
+                    
+                    // 3. 处理重要事件
+                    const memoryAction = result.memory_action;
+                    
+                    if (memoryAction.action === "update") {
+                        // 更新已有记忆
+                        const memory = longTermMemory.important_events.find(m => m.memory_id === memoryAction.memory_id);
+                        if (memory) {
+                            memory.content += " " + memoryAction.new_content;
+                            memory.last_mentioned = lastTimestamp;
+                            memory.mention_count++;
+                            memory.assistant_attitude = memoryAction.assistant_attitude;
+                            memory.importance = memoryAction.new_importance;
+                            console.log('🔄 更新记忆:', memoryAction.memory_id, memory.title);
+                        } else {
+                            console.warn('⚠️ 未找到要更新的记忆:', memoryAction.memory_id);
+                        }
                         
-                        // 按重要度排序并保留最重要的N条
-                        const maxEvents = parseInt(localStorage.getItem('maxImportantEvents')) || 10;
-                        longTermMemory.important_events = allEvents
-                            .sort((a, b) => b.importance - a.importance)
-                            .slice(0, maxEvents);
+                    } else if (memoryAction.action === "create") {
+                        // 创建新记忆
+                        const newMemory = {
+                            memory_id: "mem_" + String(longTermMemory.metadata.next_memory_id).padStart(3, '0'),
+                            type: memoryAction.type,
+                            title: memoryAction.title,
+                            created_at: firstTimestamp,
+                            last_mentioned: lastTimestamp,
+                            mention_count: 1,
+                            content: memoryAction.content,
+                            assistant_attitude: memoryAction.assistant_attitude,
+                            importance: memoryAction.importance
+                        };
+                        
+                        longTermMemory.important_events.push(newMemory);
+                        longTermMemory.metadata.next_memory_id++;
+                        
+                        console.log('✨ 创建新记忆:', newMemory.memory_id, newMemory.title);
+                        
+                    } else if (memoryAction.action === "skip") {
+                        console.log('⏭️ 跳过记忆生成:', memoryAction.reason);
                     }
                     
-                    // 保存本次生成的记忆片段（用于追溯和增量更新）
-                    const memorySegment = {
-                        generated_at: new Date().toISOString(),
-                        time_range: {
-                            start: firstTimestamp,
-                            end: lastTimestamp
-                        },
-                        bubbles_count: pendingSummaryBubbles.length,
-                        basic_info_updates: newMemory.basic_info || {},
-                        emotional_profile: newMemory.emotional_profile || "",
-                        events_found: newMemory.important_events || []
-                    };
-                    
-                    // 添加到记忆片段列表
-                    if (!longTermMemory.memory_segments) {
-                        longTermMemory.memory_segments = [];
-                    }
-                    longTermMemory.memory_segments.push(memorySegment);
-                    
-                    // 只保留最近20个片段，避免数据过大
-                    if (longTermMemory.memory_segments.length > 20) {
-                        longTermMemory.memory_segments = longTermMemory.memory_segments.slice(-20);
+                    // 按重要度排序，保留最重要的N条
+                    const maxEvents = parseInt(localStorage.getItem('maxImportantEvents')) || 10;
+                    longTermMemory.important_events.sort((a, b) => b.importance - a.importance);
+                    if (longTermMemory.important_events.length > maxEvents) {
+                        const removed = longTermMemory.important_events.splice(maxEvents);
+                        console.log('🗑️ 移除低重要度记忆:', removed.map(m => m.title).join(', '));
                     }
                     
                     // 更新元数据
@@ -3788,7 +3939,7 @@ ${conversationText}
                         last_summary_at: chatHistory.length,
                         last_updated: new Date().toISOString(),
                         version: 2,
-                        segments_count: longTermMemory.memory_segments.length
+                        next_memory_id: longTermMemory.metadata.next_memory_id
                     };
                     
                     // 清空待总结缓冲区
@@ -3933,9 +4084,6 @@ ${conversationText}
             // 填充重要事件
             renderEventsEditor();
             
-            // 填充记忆片段历史
-            renderMemorySegments();
-            
             // 显示模态窗口
             modal.style.display = 'flex';
         }
@@ -3943,78 +4091,6 @@ ${conversationText}
         /**
          * 渲染记忆片段历史
          */
-        function renderMemorySegments() {
-            const segmentsViewer = document.getElementById('memory-segments-viewer');
-            const segments = longTermMemory.memory_segments || [];
-            
-            if (segments.length === 0) {
-                segmentsViewer.innerHTML = '<p style="color: #999; font-size: 14px; padding: 10px;">暂无记忆生成历史</p>';
-                return;
-            }
-            
-            // 倒序显示（最新的在上面）
-            const reversedSegments = [...segments].reverse();
-            
-            segmentsViewer.innerHTML = reversedSegments.map((segment, index) => {
-                const actualIndex = segments.length - 1 - index;
-                const generatedTime = new Date(segment.generated_at).toLocaleString('zh-CN');
-                const startTime = new Date(segment.time_range.start).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-                const endTime = new Date(segment.time_range.end).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-                
-                return `
-                    <div style="background: #f9f9f9; border-left: 3px solid #2196F3; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <strong style="color: #333; font-size: 14px;">第 ${segments.length - index} 次生成</strong>
-                            <span style="font-size: 12px; color: #999;">${generatedTime}</span>
-                        </div>
-                        <div style="font-size: 13px; color: #666; line-height: 1.6;">
-                            <div>📅 对话范围: ${startTime} ~ ${endTime}</div>
-                            <div>💬 气泡数量: ${segment.bubbles_count} 个</div>
-                            <div>🎯 发现事件: ${segment.events_found?.length || 0} 个 
-                                ${segment.events_found && segment.events_found.length > 0 ? 
-                                    `<button onclick="showSegmentDetail(${actualIndex})" style="margin-left: 8px; padding: 2px 8px; font-size: 11px; background: #e3f2fd; border: 1px solid #2196F3; border-radius: 3px; cursor: pointer; color: #1976D2;">查看详情</button>` 
-                                    : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        /**
-         * 显示片段详情
-         */
-        function showSegmentDetail(index) {
-            const segment = longTermMemory.memory_segments[index];
-            if (!segment) return;
-            
-            let detail = `=== 第 ${index + 1} 次记忆生成详情 ===\n\n`;
-            detail += `生成时间: ${new Date(segment.generated_at).toLocaleString('zh-CN')}\n`;
-            detail += `对话范围: ${new Date(segment.time_range.start).toLocaleString('zh-CN')} 至 ${new Date(segment.time_range.end).toLocaleString('zh-CN')}\n`;
-            detail += `气泡数量: ${segment.bubbles_count} 个\n\n`;
-            
-            if (segment.basic_info_updates && Object.keys(segment.basic_info_updates).length > 0) {
-                detail += `【基本信息更新】\n`;
-                for (const [key, value] of Object.entries(segment.basic_info_updates)) {
-                    detail += `- ${key}: ${value}\n`;
-                }
-                detail += '\n';
-            }
-            
-            if (segment.emotional_profile) {
-                detail += `【情感倾向】\n${segment.emotional_profile}\n\n`;
-            }
-            
-            if (segment.events_found && segment.events_found.length > 0) {
-                detail += `【发现的事件】\n`;
-                segment.events_found.forEach((event, i) => {
-                    const typeIcon = event.type === 'relationship' ? '❤️' : '👤';
-                    detail += `${i + 1}. ${typeIcon} [${event.date}] ${event.event} (重要度: ${event.importance}/10)\n`;
-                });
-            }
-            
-            alert(detail);
-        }
         
         /**
          * 渲染事件编辑器
@@ -4030,8 +4106,20 @@ ${conversationText}
             
             eventsEditor.innerHTML = events.map((event, index) => {
                 const eventType = event.type || 'personal';
+                const createdDate = new Date(event.created_at).toLocaleDateString('zh-CN');
+                const lastMentioned = new Date(event.last_mentioned).toLocaleDateString('zh-CN');
+                
                 return `
                 <div class="event-item" data-index="${index}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px;">
+                        <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                            <strong style="color: #999; font-size: 12px;">${event.memory_id}</strong>
+                            <input type="text" value="${event.title}" onchange="updateEventTitle(${index}, this.value)" placeholder="事件主题" style="flex: 1; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-weight: 500;">
+                        </div>
+                        <div style="font-size: 12px; color: #999; white-space: nowrap;">
+                            提及 ${event.mention_count} 次
+                        </div>
+                    </div>
                     <div class="event-item-header">
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                             <div>
@@ -4041,9 +4129,13 @@ ${conversationText}
                                     <option value="relationship" ${eventType === 'relationship' ? 'selected' : ''}>❤️ 感情</option>
                                 </select>
                             </div>
-                            <div class="event-item-date">
-                                <label style="font-size: 12px; color: #666;">日期：</label>
-                                <input type="date" value="${event.date}" onchange="updateEventDate(${index}, this.value)" style="padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                            <div>
+                                <label style="font-size: 12px; color: #666;">创建：</label>
+                                <span style="font-size: 12px;">${createdDate}</span>
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #666;">最后提及：</label>
+                                <span style="font-size: 12px;">${lastMentioned}</span>
                             </div>
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
@@ -4054,7 +4146,14 @@ ${conversationText}
                             <button class="event-item-delete" onclick="deleteEvent(${index})">删除</button>
                         </div>
                     </div>
-                    <textarea rows="2" placeholder="事件描述（20字以内）" onchange="updateEventText(${index}, this.value)">${event.event}</textarea>
+                    <div style="margin-top: 8px;">
+                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">内容：</label>
+                        <textarea rows="3" placeholder="记忆内容（带日期标注）" onchange="updateEventContent(${index}, this.value)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;">${event.content || ''}</textarea>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">AI态度：</label>
+                        <input type="text" value="${event.assistant_attitude || ''}" onchange="updateEventAttitude(${index}, this.value)" placeholder="例如：关心、担心" style="width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box;">
+                    </div>
                 </div>
             `;
             }).join('');
@@ -4070,11 +4169,11 @@ ${conversationText}
         }
         
         /**
-         * 更新事件日期
+         * 更新事件标题
          */
-        function updateEventDate(index, date) {
+        function updateEventTitle(index, title) {
             if (longTermMemory.important_events[index]) {
-                longTermMemory.important_events[index].date = date;
+                longTermMemory.important_events[index].title = title;
             }
         }
         
@@ -4088,11 +4187,20 @@ ${conversationText}
         }
         
         /**
-         * 更新事件文本
+         * 更新事件内容
          */
-        function updateEventText(index, text) {
+        function updateEventContent(index, content) {
             if (longTermMemory.important_events[index]) {
-                longTermMemory.important_events[index].event = text;
+                longTermMemory.important_events[index].content = content;
+            }
+        }
+        
+        /**
+         * 更新事件AI态度
+         */
+        function updateEventAttitude(index, attitude) {
+            if (longTermMemory.important_events[index]) {
+                longTermMemory.important_events[index].assistant_attitude = attitude;
             }
         }
         
@@ -4110,10 +4218,16 @@ ${conversationText}
          * 添加新事件
          */
         function addNewEvent() {
+            const now = new Date().toISOString();
             const newEvent = {
+                memory_id: "mem_" + String(longTermMemory.metadata.next_memory_id).padStart(3, '0'),
                 type: 'personal',
-                date: new Date().toISOString().split('T')[0],
-                event: '',
+                title: '新事件',
+                created_at: now,
+                last_mentioned: now,
+                mention_count: 1,
+                content: '',
+                assistant_attitude: '',
                 importance: 5
             };
             
@@ -4122,6 +4236,7 @@ ${conversationText}
             }
             
             longTermMemory.important_events.push(newEvent);
+            longTermMemory.metadata.next_memory_id++;
             renderEventsEditor();
         }
         
@@ -4177,13 +4292,12 @@ ${conversationText}
                 basic_info: {},
                 emotional_profile: "",
                 important_events: [],
-                memory_segments: [],
                 metadata: {
                     total_messages: 0,
                     last_summary_at: 0,
                     last_updated: null,
                     version: 2,
-                    segments_count: 0
+                    next_memory_id: 1
                 }
             };
             
