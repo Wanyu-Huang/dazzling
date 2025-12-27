@@ -133,7 +133,8 @@
         }
 
         .bubble {
-            max-width: 75%;
+            max-width: 100%; /* 改为100%，由contentWrapper控制最大宽度 */
+            width: fit-content; /* 自适应内容宽度 */
             padding: 10px 12px;
             padding-bottom: 18px; /* 为时间戳留出空间 */
             border-radius: 8px;
@@ -153,6 +154,24 @@
             color: #000;
             border-top-left-radius: 0;
             border: 1px solid #e7e7e7;
+        }
+        
+        /* 消息内容包装器（包含引用和气泡） */
+        .message-content-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: 75%;
+            width: fit-content; /* 自适应内容宽度 */
+        }
+        
+        /* AI消息：内容左对齐（紧贴左侧头像） */
+        .message.assistant .message-content-wrapper {
+            align-items: flex-start;
+        }
+        
+        /* 用户消息：内容右对齐（紧贴右侧头像） */
+        .message.user .message-content-wrapper {
+            align-items: flex-end;
         }
         
         /* WhatsApp风格的时间戳和状态 */
@@ -207,11 +226,19 @@
             background-color: #f7f7f7;
             padding: 8px 10px;
             display: flex;
+            flex-wrap: wrap; /* 允许换行 */
             align-items: center;
             gap: 8px;
             border-top: 1px solid #dcdcdc;
             box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
             flex-shrink: 0;
+        }
+        
+        /* 引用预览占满一行 */
+        .chat-input-area .quote-reference {
+            width: 100%;
+            order: -1; /* 确保在最前面 */
+            margin: 0 0 8px 0; /* 只保留底部间距 */
         }
         
         .input-tool-btn {
@@ -1192,7 +1219,6 @@
             background: #f0f0f0;
             border-left: 3px solid #007AFF;
             padding: 8px 12px;
-            margin: 0 10px 8px 10px;
             border-radius: 4px;
             font-size: 13px;
             color: #666;
@@ -1239,12 +1265,14 @@
             font-size: 12px;
             color: #666;
             line-height: 1.4;
-            width: 100%; /* 占满contentWrapper宽度 */
+            width: fit-content; /* 自适应内容宽度 */
+            min-width: 120px; /* 最小宽度，避免太窄 */
+            max-width: 280px; /* 限制最大宽度，避免太长 */
             box-sizing: border-box;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 2; /* 最多显示2行 */
             -webkit-box-orient: vertical;
         }
         
@@ -5520,9 +5548,7 @@ ${JSON.stringify(importedMemoryData, null, 2)}
 
             // 创建内容容器(包含引用和气泡)
             const contentWrapper = document.createElement('div');
-            contentWrapper.style.display = 'flex';
-            contentWrapper.style.flexDirection = 'column';
-            contentWrapper.style.maxWidth = '75%';
+            contentWrapper.className = 'message-content-wrapper';
             
             // 如果有引用,先添加引用块(在气泡外部上方)
             if (quotedText && quotedSender) {
