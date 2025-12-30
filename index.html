@@ -2765,6 +2765,213 @@
             if (currentMessage) apiMessages.push(currentMessage);
             return apiMessages;
         }
+        
+        /**
+         * 向前回溯，确保第一条消息是完整的
+         * @param {Array} bubbles - 当前的气泡列表
+         * @param {Array} fullHistory - 完整的chatHistory
+         * @returns {Array} - 补全后的气泡列表
+         */
+        function extendBackward(bubbles, fullHistory) {
+            if (!bubbles || bubbles.length === 0) return bubbles;
+            
+            const firstBubble = bubbles[0];
+            const firstId = firstBubble.id;
+            const firstRole = firstBubble.role;
+            
+            // 在完整历史中找到第一条的位置
+            const firstIndex = fullHistory.findIndex(b => b.id === firstId);
+            if (firstIndex <= 0) return bubbles; // 已经是最开始了
+            
+            // 向前查找同role的消息
+            const prependBubbles = [];
+            for (let i = firstIndex - 1; i >= 0; i--) {
+                if (fullHistory[i].role === firstRole) {
+                    prependBubbles.unshift(fullHistory[i]);
+                } else {
+                    break; // 遇到不同角色，停止
+                }
+            }
+            
+            if (prependBubbles.length > 0) {
+                console.log('📍 向前回溯：补充了', prependBubbles.length, '条', firstRole, '消息');
+                return [...prependBubbles, ...bubbles];
+            }
+            
+            return bubbles;
+        }
+        
+        /**
+         * 向后延伸，确保最后一条消息是完整的
+         * @param {Array} bubbles - 当前的气泡列表
+         * @param {Array} fullHistory - 完整的chatHistory
+         * @returns {Array} - 补全后的气泡列表
+         */
+        function extendForward(bubbles, fullHistory) {
+            if (!bubbles || bubbles.length === 0) return bubbles;
+            
+            const lastBubble = bubbles[bubbles.length - 1];
+            const lastId = lastBubble.id;
+            const lastRole = lastBubble.role;
+            
+            // 在完整历史中找到最后一条的位置
+            const lastIndex = fullHistory.findIndex(b => b.id === lastId);
+            if (lastIndex === -1 || lastIndex === fullHistory.length - 1) return bubbles; // 已经是最末尾了
+            
+            // 向后查找同role的消息
+            const appendBubbles = [];
+            for (let i = lastIndex + 1; i < fullHistory.length; i++) {
+                if (fullHistory[i].role === lastRole) {
+                    appendBubbles.push(fullHistory[i]);
+                } else {
+                    break; // 遇到不同角色，停止
+                }
+            }
+            
+            if (appendBubbles.length > 0) {
+                console.log('📍 向后延伸：补充了', appendBubbles.length, '条', lastRole, '消息');
+                return [...bubbles, ...appendBubbles];
+            }
+            
+            return bubbles;
+        }
+        
+        /**
+         * 转换为API格式，智能合并消息
+         * - 相邻同role且时间差<1分钟：正常合并
+         * - 相邻同role但时间差≥1分钟：合并但每段保留时间戳
+         * - 等待期间的消息组：加前缀标记
+         */
+        function convertToAPIFormatWithPending(bubbles) {
+            if (!bubbles || bubbles.length === 0) return [];
+            
+            const TIME_THRESHOLD = 60 * 1000; // 1分钟的毫秒数
+            
+            // 1. 分离pending和非pending消息
+            const nonPendingBubbles = bubbles.filter(b => !b.isPending);
+            const pendingBubbles = bubbles.filter(b => b.isPending);
+            
+            console.log('🔍 分离消息：非pending', nonPendingBubbles.length, '条，pending', pendingBubbles.length, '条');
+            
+            // 2. 处理非pending消息（正常合并逻辑）
+            const apiMessages = [];
+            let currentMessage = null;
+            let currentGroupBubbles = [];
+            let hasLargeTimeDiff = false;
+            
+            nonPendingBubbles.forEach(bubble => {
+                if (!currentMessage || currentMessage.role !== bubble.role) {
+                    // 角色变化，保存当前消息
+                    if (currentMessage) {
+                        // 如果有大时间差，给第一条也加时间戳
+                        if (hasLargeTimeDiff && currentGroupBubbles.length > 1) {
+                            const firstTimeStr = new Date(currentGroupBubbles[0].timestamp).toLocaleString('zh-CN', {
+                                year: 'numeric', month: '2-digit', day: '2-digit',
+                                hour: '2-digit', minute: '2-digit', hour12: false
+                            }).replace(/\//g, '-');
+                            currentMessage.content = '[' + firstTimeStr + '] ' + currentMessage.content;
+                        }
+                        apiMessages.push(currentMessage);
+                    }
+                    
+                    // 开始新消息
+                    currentMessage = {
+                        role: bubble.role,
+                        content: bubble.content,
+                        timestamp: bubble.timestamp
+                    };
+                    currentGroupBubbles = [bubble];
+                    hasLargeTimeDiff = false;
+                } else {
+                    // 同角色，检查时间差
+                    const lastBubble = currentGroupBubbles[currentGroupBubbles.length - 1];
+                    const timeDiff = new Date(bubble.timestamp) - new Date(lastBubble.timestamp);
+                    
+                    if (timeDiff >= TIME_THRESHOLD) {
+                        // 时间差>=1分钟，合并但保留时间戳
+                        hasLargeTimeDiff = true;
+                        const timeStr = new Date(bubble.timestamp).toLocaleString('zh-CN', {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit', hour12: false
+                        }).replace(/\//g, '-');
+                        currentMessage.content += '\n[' + timeStr + '] ' + bubble.content;
+                    } else {
+                        // 时间差<1分钟，正常合并
+                        currentMessage.content += '\n\n' + bubble.content;
+                    }
+                    
+                    currentGroupBubbles.push(bubble);
+                }
+            });
+            
+            // 保存最后一条非pending消息
+            if (currentMessage) {
+                if (hasLargeTimeDiff && currentGroupBubbles.length > 1) {
+                    const firstTimeStr = new Date(currentGroupBubbles[0].timestamp).toLocaleString('zh-CN', {
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit', hour12: false
+                    }).replace(/\//g, '-');
+                    currentMessage.content = '[' + firstTimeStr + '] ' + currentMessage.content;
+                }
+                apiMessages.push(currentMessage);
+            }
+            
+            // 3. 处理pending消息 - 全部合并成一条，放在最后
+            if (pendingBubbles.length > 0) {
+                console.log('✅ 合并', pendingBubbles.length, '条pending消息到最后');
+                
+                let pendingContent = '';
+                let pendingGroupBubbles = [];
+                let pendingHasLargeTimeDiff = false;
+                
+                pendingBubbles.forEach((bubble, index) => {
+                    if (index === 0) {
+                        pendingContent = bubble.content;
+                        pendingGroupBubbles.push(bubble);
+                    } else {
+                        // 检查时间差
+                        const lastBubble = pendingGroupBubbles[pendingGroupBubbles.length - 1];
+                        const timeDiff = new Date(bubble.timestamp) - new Date(lastBubble.timestamp);
+                        
+                        if (timeDiff >= TIME_THRESHOLD) {
+                            // 时间差>=1分钟，加时间戳
+                            pendingHasLargeTimeDiff = true;
+                            const timeStr = new Date(bubble.timestamp).toLocaleString('zh-CN', {
+                                year: 'numeric', month: '2-digit', day: '2-digit',
+                                hour: '2-digit', minute: '2-digit', hour12: false
+                            }).replace(/\//g, '-');
+                            pendingContent += '\n[' + timeStr + '] ' + bubble.content;
+                        } else {
+                            // 时间差<1分钟，正常合并
+                            pendingContent += '\n\n' + bubble.content;
+                        }
+                        
+                        pendingGroupBubbles.push(bubble);
+                    }
+                });
+                
+                // 如果有大时间差，给第一条也加时间戳
+                if (pendingHasLargeTimeDiff && pendingGroupBubbles.length > 1) {
+                    const firstTimeStr = new Date(pendingGroupBubbles[0].timestamp).toLocaleString('zh-CN', {
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit', hour12: false
+                    }).replace(/\//g, '-');
+                    pendingContent = '[' + firstTimeStr + '] ' + pendingContent;
+                }
+                
+                // 加上[在等待回复期间补充发送]前缀
+                pendingContent = '[在等待回复期间补充发送] ' + pendingContent;
+                
+                // 添加到最后
+                apiMessages.push({
+                    role: 'user',
+                    content: pendingContent,
+                    timestamp: pendingBubbles[0].timestamp
+                });
+            }
+            
+            return apiMessages;
+        }
         // ==========================================
         
         //let chatHistory = JSON.parse(localStorage.getItem('chatHistory')) || [];//试图调取之前的聊天记录
@@ -4807,16 +5014,20 @@
                 const loadingMsg = manual ? '正在生成记忆总结，请稍候...' : '后台更新长期记忆...';
                 showToast(loadingMsg);
                 
+                // 【关键优化】向后延伸，确保最后一条消息是完整的
+                let bubblesToSummarize = extendForward(pendingSummaryBubbles, chatHistory);
+                console.log('📍 记忆生成：原始', pendingSummaryBubbles.length, '条 → 延伸后', bubblesToSummarize.length, '条');
+                
                 // 准备对话内容
-                const conversationText = pendingSummaryBubbles.map(b => {
+                const conversationText = bubblesToSummarize.map(b => {
                     const time = new Date(b.timestamp).toLocaleString('zh-CN');
                     const speaker = b.role === 'user' ? config.userNickname : config.aiNickname;
                     return `[${time}] ${speaker}: ${b.content}`;
                 }).join('\n\n');
                 
                 // 获取对话时间范围
-                const firstTimestamp = pendingSummaryBubbles[0]?.timestamp;
-                const lastTimestamp = pendingSummaryBubbles[pendingSummaryBubbles.length - 1]?.timestamp;
+                const firstTimestamp = bubblesToSummarize[0]?.timestamp;
+                const lastTimestamp = bubblesToSummarize[bubblesToSummarize.length - 1]?.timestamp;
                 const timeRange = `${new Date(firstTimestamp).toLocaleString('zh-CN')} 至 ${new Date(lastTimestamp).toLocaleString('zh-CN')}`;
                 
                 // 构建已有记忆的详细上下文
@@ -4833,7 +5044,7 @@
 
 【对话时间范围】
 ${timeRange}
-气泡数量：${pendingSummaryBubbles.length}个
+气泡数量：${bubblesToSummarize.length}个
 
 【当前已有的基本信息】
 ${Object.keys(longTermMemory.basic_info).length > 0 ? JSON.stringify(longTermMemory.basic_info, null, 2) : '无'}
@@ -6145,57 +6356,102 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             // 2. 根据 '\n\n' 分割完整的响应文本
             const messageSegments = fullAiText.split(separator).filter(seg => seg.trim());
 
-            // 3. 逐条遍历并使用 setTimeout 实现延迟显示
+            // 3. 【关键修改】先同步将所有分段加入chatHistory
+            const bubbles = []; // 保存所有气泡对象，用于后续UI显示
             messageSegments.forEach((segment, index) => {
-                // 清理可能的时间戳（有些AI可能在每段都加时间戳）
+                // 清理可能的时间戳
                 let cleanSegment = cleanApiResponse(segment);
                 cleanSegment = cleanSegment.trim();
 
                 if (cleanSegment.length > 0) {
-                    // 实现延迟效果
-                    setTimeout(() => {
-                        // 每条消息都显示（跳过scrollToBottom，因为displayMessage会自动调用）
-                        displayMessage(cleanSegment, 'assistant', 0, aiTimestamp, true, null, false);
-                        
-                        // 触发消息通知（只在第一条消息时触发，且不在聊天页面时）
-                        if (index === 0) {
-                            const currentPage = document.querySelector('.page.active');
-                            if (currentPage && currentPage.id !== 'chat-page') {
-                                const characterName = config.aiNickname || 'AI 聊天对象';
-                                const avatarData = config.aiAvatar || null;
-                                showMessageNotification(currentCharacterId, characterName, cleanSegment, avatarData);
-                            }
-                        }
-                    }, index * delay); 
+                    // 立即加入chatHistory，但跳过UI渲染（saveToHistory=true, skipScroll=true）
+                    // 并且不立即渲染到页面（我们稍后异步渲染）
+                    const bubble = {
+                        content: cleanSegment,
+                        timestamp: aiTimestamp,
+                        index: index
+                    };
+                    bubbles.push(bubble);
+                    
+                    // 只加入chatHistory，不渲染UI
+                    chatHistory.push({
+                        id: 'bubble_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                        role: 'assistant',
+                        content: cleanSegment,
+                        timestamp: aiTimestamp
+                    });
+                    pendingSummaryBubbles.push(chatHistory[chatHistory.length - 1]);
                 }
             });
+            
+            // 保存到localStorage
+            saveChatHistory();
+            
+            console.log('✅ 所有AI分段已加入chatHistory，共', bubbles.length, '条');
 
-            // 4. 在所有分段显示完毕后，处理最终的状态
-            const totalDelay = messageSegments.length * delay;
-            setTimeout(() => {
-                // AI回复完成后，重置等待状态
-                isWaitingForAI = false;
-                console.log('✅ AI回复完成，等待状态已重置');
-                
-                // 检查是否需要自动生成记忆
-                checkAutoSummary();
-                
-                // 检查是否有待发送的消息
-                if (pendingUserMessages.length > 0) {
-                    if (hasReachedWaitTime) {
-                        // 队列中的消息已经等够7秒 → 异步延迟发送
-                        console.log('📬 发现待发送消息', pendingUserMessages.length, '条，且已到时间，准备发送');
-                        // 使用setTimeout异步调用，避免在当前事件循环中立即执行
-                        setTimeout(() => {
-                            sendBatchMessages();
-                        }, 100); // 延迟100ms，给浏览器处理完当前状态的时间
-                    } else {
-                        // 队列中的消息还未到7秒 → 继续计时
-                        console.log('📬 发现待发送消息', pendingUserMessages.length, '条，但未到时间，继续计时');
-                        startBatchTimer();
-                    }
+            // 4. 【关键修改】chatHistory已完整，立即重置状态并处理下一批
+            isWaitingForAI = false;
+            
+            // 检查是否需要自动生成记忆
+            checkAutoSummary();
+            
+            // 立即检查是否有待发送的消息
+            if (pendingUserMessages.length > 0) {
+                if (hasReachedWaitTime) {
+                    // 队列中的消息已经等够7秒 → 立即发送
+                    console.log('📬 发现待发送消息', pendingUserMessages.length, '条，且已到时间，立即发送');
+                    hasReachedWaitTime = false;
+                    sendBatchMessages();
+                } else {
+                    // 队列中的消息还未到7秒 → 继续计时
+                    console.log('📬 发现待发送消息', pendingUserMessages.length, '条，但未到时间，继续计时');
+                    startBatchTimer();
                 }
-            }, totalDelay);
+            } else {
+                hasReachedWaitTime = false;
+            }
+
+            // 5. 【UI显示】异步逐条显示消息（纯视觉效果，不影响逻辑）
+            bubbles.forEach((bubble, index) => {
+                setTimeout(() => {
+                    // 创建并显示消息UI（不再修改chatHistory）
+                    displayMessageUI(bubble.content, 'assistant', aiTimestamp);
+                    
+                    // 触发消息通知（只在第一条消息时触发，且不在聊天页面时）
+                    if (index === 0) {
+                        const currentPage = document.querySelector('.page.active');
+                        if (currentPage && currentPage.id !== 'chat-page') {
+                            const characterName = config.aiNickname || 'AI 聊天对象';
+                            const avatarData = config.aiAvatar || null;
+                            showMessageNotification(currentCharacterId, characterName, bubble.content, avatarData);
+                        }
+                    }
+                }, index * delay);
+            });
+        }
+        
+        /**
+         * 仅显示消息UI，不修改chatHistory
+         * 用于分段显示AI消息时的视觉效果
+         */
+        function displayMessageUI(text, role, timestamp) {
+            const fullTimestamp = timestamp || new Date().toISOString();
+            
+            // 查找对应的bubble（从chatHistory中找到匹配的）
+            const bubble = chatHistory.find(b => 
+                b.content === text && 
+                b.role === role && 
+                b.timestamp === fullTimestamp &&
+                !document.querySelector(`[data-bubble-id="${b.id}"]`) // 还没渲染过
+            );
+            
+            if (!bubble) {
+                console.error('❌ 找不到对应的bubble');
+                return;
+            }
+            
+            // 渲染UI（复用displayMessage的UI渲染逻辑，但不保存到chatHistory）
+            displayMessage(text, role, 0, timestamp, false, bubble.id, false);
         }
         
         // ========== 批量发送功能 ==========
@@ -6280,17 +6536,21 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             // 显示"对方正在输入中..."
             showTypingIndicator();
             
+            // 【关键修复】保存待发送队列的副本，用于API调用时识别等待期间的消息
+            const currentBatchIds = [...pendingUserMessages];
+            
             // 清空待发送队列
             pendingUserMessages = [];
             
-            // 调用API
-            await callAPIToGenerate();
+            // 调用API，传入当前批次的消息ID
+            await callAPIToGenerate(currentBatchIds);
         }
         
         /**
          * 调用API生成回复（从generateBtn.onclick中提取）
+         * @param {Array} currentBatchIds - 当前批次的消息ID数组，用于识别等待期间发送的消息
          */
-        async function callAPIToGenerate() {
+        async function callAPIToGenerate(currentBatchIds = []) {
             // 启动API超时计时器
             const timeoutSeconds = parseInt(localStorage.getItem('apiTimeout')) || 60;
             console.log('⏰ 启动API超时计时器:', timeoutSeconds, '秒');
@@ -6331,11 +6591,51 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             const N = parseInt(localStorage.getItem(contextSizeKey)) || 50; 
             
             // C. 截取最后N个气泡
-            const recentBubbles = chatHistory.slice(-N);
+            let recentBubbles = chatHistory.slice(-N);
             
-            // D. 转换为API格式（合并相邻同role的消息，大幅节省token💰）
-            const apiMessages = convertToAPIFormat(recentBubbles);
+            // 【关键优化】向前回溯，确保第一条消息是完整的
+            recentBubbles = extendBackward(recentBubbles, chatHistory);
+            
+            console.log('📊 准备发送的气泡数量:', recentBubbles.length);
+            console.log('📊 当前批次ID:', currentBatchIds);
+            console.log('📊 完整chatHistory长度:', chatHistory.length);
+            console.log('📊 chatHistory最后5条ID:', chatHistory.slice(-5).map(b => b.id));
+            console.log('📊 recentBubbles的ID:', recentBubbles.map(b => b.id));
+            
+            // 【关键修改】在合并前，标记等待期间的user消息（但不加前缀，留到合并时处理）
+            const pendingBubbleIds = new Set(currentBatchIds);
+            console.log('🔍 pendingBubbleIds:', Array.from(pendingBubbleIds));
+            
+            recentBubbles = recentBubbles.map(bubble => {
+                if (bubble.role === 'user' && pendingBubbleIds.has(bubble.id)) {
+                    // 这是等待期间发送的消息，加标记（但不修改content）
+                    console.log('✅ 标记为isPending:', bubble.id, bubble.content.substring(0, 20));
+                    return {
+                        ...bubble,
+                        isPending: true
+                    };
+                }
+                return bubble;
+            });
+            
+            console.log('📊 最后5个气泡:', recentBubbles.slice(-5).map(b => ({
+                role: b.role,
+                isPending: b.isPending,
+                content: b.content.substring(0, 50) + '...'
+            })));
+            
+            // D. 转换为API格式（修改合并逻辑，不合并带isPending标记的消息）
+            let apiMessages = convertToAPIFormatWithPending(recentBubbles);
             console.log('💰 Token优化:', recentBubbles.length, '个气泡 →', apiMessages.length, '条API消息');
+            console.log('📊 合并后的消息:', apiMessages.map(m => ({
+                role: m.role,
+                content: m.content.substring(0, 50) + '...'
+            })));
+            
+            // E. 确保最后一条是user（应该已经是了，因为等待期间的消息被移到了后面）
+            if (apiMessages.length > 0 && apiMessages[apiMessages.length - 1].role !== 'user') {
+                console.error('❌ 警告：最后一条消息不是user！');
+            }
 
             // E. 构建最终的 Messages 列表
             let finalSystemPrompt = config.systemPrompt;
@@ -6407,6 +6707,29 @@ ${JSON.stringify(importedMemoryData, null, 2)}
                 { role: "system", content: finalSystemPrompt },
                 ...messagesWithTime 
             ];
+            
+            // 【调试日志】输出发送给API的消息
+            console.log('📤 准备发送API请求');
+            console.log('📊 消息数量:', messages.length);
+            console.log('🔍 第一条消息角色:', messages[1]?.role);
+            console.log('🔍 最后一条消息角色:', messages[messages.length - 1]?.role);
+            console.log('📋 最后5条消息:', messages.slice(-5).map(m => ({
+                role: m.role,
+                content: m.content.substring(0, 50) + '...'
+            })));
+            console.log('📝 完整chatHistory长度:', chatHistory.length);
+            console.log('📝 最后3条chatHistory:', chatHistory.slice(-3).map(b => ({
+                role: b.role,
+                content: b.content.substring(0, 30) + '...',
+                timestamp: b.timestamp
+            })));
+            
+            // 【关键检查】API要求最后一条消息必须是user
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage.role !== 'user') {
+                console.error('❌ 错误：最后一条消息不是user角色！role =', lastMessage.role);
+                console.error('这会导致API返回空的choices数组');
+            }
             
             const requestBody = {
                 model: config.modelname,
