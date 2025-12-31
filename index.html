@@ -4672,38 +4672,54 @@
                 
                 let finalSystemPrompt = config.systemPrompt;
                 
-                // 添加长期记忆到系统提示（如果存在）
-                // 修复：移除last_updated检查，只要有longTermMemory就添加
+                // 添加长期记忆到系统提示
                 if (longTermMemory && longTermMemory.metadata) {
-                    let memoryPrompt = '\n\n[长期记忆]：\n';
+                    let memoryPrompt = '\n\n=== 长期记忆 ===\n\n';
                     
                     // 添加基本信息
                     if (longTermMemory.basic_info && Object.keys(longTermMemory.basic_info).length > 0) {
-                        memoryPrompt += '用户基本信息：\n';
+                        memoryPrompt += '以下是用户的基本信息，你作为用户的爱人应该深深牢记，并且贴近用户的喜好，照顾用户所有需求：\n';
                         for (const [key, value] of Object.entries(longTermMemory.basic_info)) {
-                            memoryPrompt += `- ${key}: ${value}\n`;
+                            memoryPrompt += `${key}: ${value}\n`;
                         }
+                        memoryPrompt += '\n';
                     }
                     
                     // 添加情感倾向
                     if (longTermMemory.emotional_profile) {
-                        memoryPrompt += `\n用户性格特点：${longTermMemory.emotional_profile}\n`;
+                        memoryPrompt += `性格: ${longTermMemory.emotional_profile}\n\n`;
                     }
                     
-                    // 新增：添加人际关系
+                    // 添加人际关系
                     if (longTermMemory.relationships) {
-                        memoryPrompt += `\n人际关系：${longTermMemory.relationships}\n`;
+                        memoryPrompt += `人际关系: ${longTermMemory.relationships}\n\n`;
                     }
                     
-                    // 添加重要事件（最近5个）- 修复：使用正确的字段名
+                    // 添加所有记忆（按last_mentioned倒序）
                     if (longTermMemory.important_events && longTermMemory.important_events.length > 0) {
-                        memoryPrompt += '\n近期重要事件：\n';
-                        longTermMemory.important_events.slice(0, 5).forEach(event => {
-                            const dateStr = new Date(event.last_mentioned).toLocaleDateString('zh-CN');
-                            memoryPrompt += `- ${event.title}（${dateStr}，重要度${event.importance}分）：${event.content}\n`;
+                        // 按last_mentioned倒序排序（最近的在前）
+                        const sortedMemories = [...longTermMemory.important_events].sort((a, b) => 
+                            new Date(b.last_mentioned) - new Date(a.last_mentioned)
+                        );
+                        
+                        memoryPrompt += '以下是你和用户交互时，你产生的记忆片段和你对于事件的情绪，你应该深深记住并且基于以上事实对用户的最新消息进行回复（越靠前的记忆越重要）：\n\n';
+                        
+                        sortedMemories.forEach((m, i) => {
+                            const date = new Date(m.last_mentioned).toLocaleDateString('zh-CN');
+                            memoryPrompt += `${i + 1}. ${m.title}（${date}`;
+                            if (m.mention_count) {
+                                memoryPrompt += `，提及${m.mention_count}次`;
+                            }
+                            memoryPrompt += `）\n`;
+                            memoryPrompt += `${m.content}\n`;
+                            if (m.assistant_attitude) {
+                                memoryPrompt += `你的态度: ${m.assistant_attitude}\n`;
+                            }
+                            memoryPrompt += '\n';
                         });
                     }
                     
+                    memoryPrompt += '=== 记忆结束 ===\n';
                     finalSystemPrompt += memoryPrompt;
                 }
                 
@@ -6739,6 +6755,358 @@ ${JSON.stringify(importedMemoryData, null, 2)}
         }
         
         /**
+         * 智能提取相关记忆
+         * @param {Array} memories - 所有记忆
+         * @param {string} userMessage - 用户消息
+         * @param {Array} recentBubbles - 最近的对话气泡
+         * @returns {Array} 相关记忆列表（1-5条）
+         */
+        function extractRelevantMemories(memories, userMessage, recentBubbles) {
+            if (!memories || memories.length === 0) return [];
+            
+            console.log('🧠 开始智能记忆提取');
+            console.log('📊 总记忆数:', memories.length);
+            console.log('💬 用户消息:', userMessage.substring(0, 50));
+            
+            const result = [];
+            const now = Date.now();
+            
+            // 检测用户情绪（是否在抱怨记忆不准确）
+            const isComplaining = /我都说了|你记不得|忘了吗|不记得|刚才说过/.test(userMessage);
+            const hasEmphasis = /！|!/.test(userMessage);
+            const isEmotional = isComplaining || hasEmphasis;
+            
+            if (isEmotional) {
+                console.log('😤 检测到情绪强度，扩大搜索范围');
+            }
+            
+            // 解析用户提到的时间
+            const timeRange = parseTimeReference(userMessage, now);
+            if (timeRange) {
+                console.log('📅 检测到时间引用:', timeRange.description);
+            }
+            
+            // ===== 第一层：时间筛选 =====
+            let candidates = [];
+            
+            if (timeRange && !isEmotional) {
+                // 用户明确提到时间，筛选该时间段的记忆
+                candidates = memories.filter(m => {
+                    const created = new Date(m.created_at).getTime();
+                    const lastMentioned = new Date(m.last_mentioned).getTime();
+                    // 创建时间或最后提及时间在范围内
+                    return (created >= timeRange.start && created <= timeRange.end) ||
+                           (lastMentioned >= timeRange.start && lastMentioned <= timeRange.end);
+                });
+                console.log(`📅 时间段筛选: ${candidates.length}条记忆`);
+            } else if (isEmotional && timeRange) {
+                // 情绪强，扩大时间范围（前后各延长50%）
+                const duration = timeRange.end - timeRange.start;
+                const expandedStart = timeRange.start - duration * 0.5;
+                const expandedEnd = timeRange.end + duration * 0.5;
+                
+                candidates = memories.filter(m => {
+                    const created = new Date(m.created_at).getTime();
+                    const lastMentioned = new Date(m.last_mentioned).getTime();
+                    return (created >= expandedStart && created <= expandedEnd) ||
+                           (lastMentioned >= expandedStart && lastMentioned <= expandedEnd);
+                });
+                console.log(`😤 情绪模式：扩大时间范围，筛选到 ${candidates.length}条`);
+            } else {
+                // 没有时间引用，按最近时间筛选
+                const threeDaysAgo = now - 3 * 24 * 60 * 60 * 1000;
+                const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+                
+                // 最近3天必选
+                const veryRecent = memories.filter(m => 
+                    new Date(m.last_mentioned).getTime() >= threeDaysAgo
+                );
+                candidates.push(...veryRecent);
+                console.log(`⏰ 最近3天: ${veryRecent.length}条`);
+                
+                // 如果不够5条，加入3-7天的
+                if (candidates.length < 5) {
+                    const recent = memories.filter(m => {
+                        const time = new Date(m.last_mentioned).getTime();
+                        return time >= sevenDaysAgo && time < threeDaysAgo;
+                    });
+                    candidates.push(...recent);
+                    console.log(`⏰ 3-7天: ${recent.length}条`);
+                }
+            }
+            
+            // ===== 第二层：内容匹配 =====
+            // 提取关键词
+            const keywords = extractKeywords(userMessage, recentBubbles);
+            console.log(`🔍 提取关键词: ${keywords.join(', ')}`);
+            
+            if (keywords.length > 0) {
+                // 对候选记忆进行内容匹配评分
+                const scored = candidates.map(m => {
+                    let matchScore = 0;
+                    const titleLower = m.title.toLowerCase();
+                    const contentLower = m.content.toLowerCase();
+                    
+                    keywords.forEach(kw => {
+                        const kwLower = kw.toLowerCase();
+                        // title匹配 → 必选
+                        if (titleLower.includes(kwLower)) {
+                            matchScore += 100;  // 极高分，保证被选中
+                        }
+                        // content匹配
+                        if (contentLower.includes(kwLower)) {
+                            matchScore += 1;
+                        }
+                    });
+                    
+                    return { memory: m, matchScore };
+                });
+                
+                // 分离：title命中的（必选）和 content命中的
+                const titleMatched = scored.filter(x => x.matchScore >= 100);
+                const contentMatched = scored.filter(x => x.matchScore > 0 && x.matchScore < 100);
+                
+                console.log(`✅ Title匹配（必选）: ${titleMatched.length}条`);
+                console.log(`📝 Content匹配: ${contentMatched.length}条`);
+                
+                // 先加入title匹配的
+                result.push(...titleMatched.map(x => x.memory));
+                
+                // 再加入content匹配度高的（按分数排序）
+                contentMatched.sort((a, b) => b.matchScore - a.matchScore);
+                
+                // 补充到3-5条（但不超过5条）
+                const remaining = Math.min(5 - result.length, contentMatched.length);
+                if (remaining > 0) {
+                    result.push(...contentMatched.slice(0, remaining).map(x => x.memory));
+                }
+                
+                // 如果在非时间筛选模式下，还要搜索所有记忆的content
+                if (!timeRange && result.length < 3) {
+                    console.log('🔍 候选不足，搜索全部记忆...');
+                    const allMemoriesMatched = memories
+                        .filter(m => !result.find(r => r.memory_id === m.memory_id))  // 排除已选
+                        .map(m => {
+                            let score = 0;
+                            const titleLower = m.title.toLowerCase();
+                            const contentLower = m.content.toLowerCase();
+                            
+                            keywords.forEach(kw => {
+                                const kwLower = kw.toLowerCase();
+                                if (titleLower.includes(kwLower)) score += 100;
+                                if (contentLower.includes(kwLower)) score += 1;
+                            });
+                            
+                            return { memory: m, score };
+                        })
+                        .filter(x => x.score > 0)
+                        .sort((a, b) => b.score - a.score);
+                    
+                    const toAdd = Math.min(3 - result.length, allMemoriesMatched.length);
+                    if (toAdd > 0) {
+                        result.push(...allMemoriesMatched.slice(0, toAdd).map(x => x.memory));
+                        console.log(`📚 全库搜索：+${toAdd}条`);
+                    }
+                }
+            }
+            
+            // ===== 第三层：鲁棒性兜底 =====
+            // 修复3: 如果完全没有匹配到，返回所有记忆（按时间排序）
+            if (result.length === 0) {
+                console.log('⚠️ 关键词无匹配，返回全部记忆（按时间排序）');
+                const allByTime = [...memories].sort((a, b) => 
+                    new Date(b.last_mentioned) - new Date(a.last_mentioned)
+                );
+                result.push(...allByTime);
+            }
+            
+            // 去重并按时间排序
+            const unique = [...new Map(result.map(m => [m.memory_id, m])).values()];
+            unique.sort((a, b) => new Date(b.last_mentioned) - new Date(a.last_mentioned));
+            
+            // 如果是兜底情况（返回了全部记忆），不限制数量；否则最多5条
+            const maxReturn = result.length === memories.length ? memories.length : 5;
+            const final = unique.slice(0, maxReturn);
+            
+            console.log(`✅ 最终返回 ${final.length} 条记忆:`);
+            final.forEach((m, i) => {
+                console.log(`   ${i + 1}. ${m.title}`);
+            });
+            
+            return final;
+        }
+        
+        /**
+         * 解析时间引用
+         */
+        function parseTimeReference(text, now) {
+            const today = new Date(now);
+            today.setHours(0, 0, 0, 0);
+            
+            // 昨天
+            if (/昨天|昨日/.test(text)) {
+                const start = new Date(today);
+                start.setDate(start.getDate() - 1);
+                const end = new Date(start);
+                end.setHours(23, 59, 59, 999);
+                return { start: start.getTime(), end: end.getTime(), description: '昨天' };
+            }
+            
+            // 前天
+            if (/前天/.test(text)) {
+                const start = new Date(today);
+                start.setDate(start.getDate() - 2);
+                const end = new Date(start);
+                end.setHours(23, 59, 59, 999);
+                return { start: start.getTime(), end: end.getTime(), description: '前天' };
+            }
+            
+            // 上周/上星期
+            if (/上周|上星期|上礼拜/.test(text)) {
+                const start = new Date(today);
+                start.setDate(start.getDate() - 14);  // 2周前
+                const end = new Date(today);
+                end.setDate(end.getDate() - 7);  // 1周前
+                return { start: start.getTime(), end: end.getTime(), description: '上周' };
+            }
+            
+            // 上个月
+            if (/上个月|上月/.test(text)) {
+                const start = new Date(today);
+                start.setMonth(start.getMonth() - 1);
+                start.setDate(1);
+                const end = new Date(start);
+                end.setMonth(end.getMonth() + 1);
+                end.setDate(0);
+                end.setHours(23, 59, 59, 999);
+                return { start: start.getTime(), end: end.getTime(), description: '上个月' };
+            }
+            
+            // 今年X月
+            const monthMatch = text.match(/今年\s*([0-9一二三四五六七八九十]+)\s*月/);
+            if (monthMatch) {
+                const monthNum = parseChineseNumber(monthMatch[1]);
+                if (monthNum >= 1 && monthNum <= 12) {
+                    const start = new Date(today.getFullYear(), monthNum - 1, 1);
+                    const end = new Date(today.getFullYear(), monthNum, 0, 23, 59, 59, 999);
+                    return { start: start.getTime(), end: end.getTime(), description: `今年${monthNum}月` };
+                }
+            }
+            
+            // 具体日期 XX/XX 或 XX月XX日
+            const dateMatch = text.match(/(\d{1,2})[\/月](\d{1,2})/);
+            if (dateMatch) {
+                const month = parseInt(dateMatch[1]);
+                const day = parseInt(dateMatch[2]);
+                if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                    const year = today.getFullYear();
+                    const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+                    const end = new Date(year, month - 1, day, 23, 59, 59, 999);
+                    return { start: start.getTime(), end: end.getTime(), description: `${month}月${day}日` };
+                }
+            }
+            
+            return null;
+        }
+        
+        /**
+         * 解析中文数字
+         */
+        function parseChineseNumber(str) {
+            const map = {
+                '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+                '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+                '十一': 11, '十二': 12
+            };
+            return map[str] || parseInt(str) || 0;
+        }
+        
+        /**
+         * 提取关键词（综合版 - 多策略融合）
+         */
+        function extractKeywords(userMessage, recentBubbles) {
+            // 修复1: 使用最近5条用户消息（而不是3条）
+            const recentUserMsgs = recentBubbles
+                .filter(b => b.role === 'user')
+                .slice(-5)  // 改为5条
+                .map(b => b.content)
+                .join(' ');
+            
+            const text = userMessage + ' ' + recentUserMsgs;
+            const keywords = [];
+            
+            console.log('📝 提取关键词的文本长度:', text.length, '字');
+            
+            // === 策略1：名词后缀模式 ===
+            const nounPattern = /([\u4e00-\u9fa5]{1,3}[子儿者人师生员长家手物品料纸书笔机器虫]+)/g;
+            const nouns = text.match(nounPattern) || [];
+            keywords.push(...nouns);
+            
+            // === 策略2：专有名词（英文） ===
+            const properNouns = text.match(/[A-Z][a-zA-Z]+/g) || [];
+            keywords.push(...properNouns);
+            
+            // === 策略3：简单分词（按标点和空格） ===
+            const segments = text.split(/[\s，。！？、；：""''（）【】《》]+/);
+            segments.forEach(seg => {
+                if (seg.length >= 2 && seg.length <= 6) {
+                    // 排除纯时间词和虚词
+                    if (/^(今天|明天|昨天|今晚|现在|刚才|之后|以前|上次|下次|最近|一直|没有|可以|应该|这个|那个|什么|怎么)$/.test(seg)) {
+                        return;
+                    }
+                    keywords.push(seg);
+                }
+            });
+            
+            // === 策略4：高价值单字（名词性） ===
+            const valuableChars = text.match(/[信纸书笔机器车房钱金银铜铁钢木水火土山石玉宝珠贝币票卡证照片画图章印台灯椅桌柜架箱包袋盒瓶罐壶杯碗盘碟勺筷]/g) || [];
+            keywords.push(...valuableChars);
+            
+            // === 策略5：连续2-3字的中文词（补充） ===
+            const chineseWords = text.match(/[\u4e00-\u9fa5]{2,3}/g) || [];
+            chineseWords.forEach(w => {
+                // 只保留不在停用词列表的
+                if (!/^(我们|你们|他们|今天|明天|昨天|今晚|现在|刚才|之后|以前|上次|下次|最近|一直|没有|可以|应该|这个|那个|什么|怎么|为什么|不是|觉得|知道|继续|之前)$/.test(w)) {
+                    keywords.push(w);
+                }
+            });
+            
+            // 去重并统计频率
+            const freq = {};
+            keywords.forEach(k => {
+                const clean = k.trim();
+                if (clean.length > 0 && clean.length <= 6) {
+                    freq[clean] = (freq[clean] || 0) + 1;
+                }
+            });
+            
+            // 修复2: 去除重叠词（只保留最长的）
+            const allWords = Object.keys(freq);
+            const filtered = allWords.filter(word => {
+                // 检查是否被其他更长的词包含
+                return !allWords.some(other => 
+                    other !== word && 
+                    other.length > word.length && 
+                    other.includes(word)
+                );
+            });
+            
+            console.log(`🔍 去重叠前: ${allWords.length}个词`);
+            console.log(`✂️ 去重叠后: ${filtered.length}个词`);
+            
+            // 重新排序：先按频率，再按长度
+            const sorted = filtered.sort((a, b) => {
+                if (freq[b] !== freq[a]) return freq[b] - freq[a];
+                return b.length - a.length;
+            });
+            
+            const result = sorted.slice(0, 8);
+            console.log('🎯 最终关键词:', result.join(', '));
+            
+            return result;
+        }
+        
+        /**
          * 调用API生成回复（从generateBtn.onclick中提取）
          * @param {Array} currentBatchIds - 当前批次的消息ID数组，用于识别等待期间发送的消息
          */
@@ -6832,38 +7200,54 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             // E. 构建最终的 Messages 列表
             let finalSystemPrompt = config.systemPrompt;
             
-            // 添加长期记忆到系统提示（如果存在）
-            // 修复：移除last_updated检查，只要有longTermMemory就添加
+            // 添加长期记忆到系统提示
             if (longTermMemory && longTermMemory.metadata) {
-                let memoryPrompt = '\n\n[长期记忆]：\n';
+                let memoryPrompt = '\n\n=== 长期记忆 ===\n\n';
                 
                 // 添加基本信息
                 if (longTermMemory.basic_info && Object.keys(longTermMemory.basic_info).length > 0) {
-                    memoryPrompt += '用户基本信息：\n';
+                    memoryPrompt += '以下是用户的基本信息，你作为用户的爱人应该深深牢记，并且贴近用户的喜好，照顾用户所有需求：\n';
                     for (const [key, value] of Object.entries(longTermMemory.basic_info)) {
-                        memoryPrompt += `- ${key}: ${value}\n`;
+                        memoryPrompt += `${key}: ${value}\n`;
                     }
+                    memoryPrompt += '\n';
                 }
                 
                 // 添加情感倾向
                 if (longTermMemory.emotional_profile) {
-                    memoryPrompt += `\n用户性格特点：${longTermMemory.emotional_profile}\n`;
+                    memoryPrompt += `性格: ${longTermMemory.emotional_profile}\n\n`;
                 }
                 
-                // 新增：添加人际关系
+                // 添加人际关系
                 if (longTermMemory.relationships) {
-                    memoryPrompt += `\n人际关系：${longTermMemory.relationships}\n`;
+                    memoryPrompt += `人际关系: ${longTermMemory.relationships}\n\n`;
                 }
                 
-                // 添加重要事件（最近5个）- 修复：使用正确的字段名
+                // 添加所有记忆（按last_mentioned倒序）
                 if (longTermMemory.important_events && longTermMemory.important_events.length > 0) {
-                    memoryPrompt += '\n近期重要事件：\n';
-                    longTermMemory.important_events.slice(0, 5).forEach(event => {
-                        const dateStr = new Date(event.last_mentioned).toLocaleDateString('zh-CN');
-                        memoryPrompt += `- ${event.title}（${dateStr}，重要度${event.importance}分）：${event.content}\n`;
+                    // 按last_mentioned倒序排序（最近的在前）
+                    const sortedMemories = [...longTermMemory.important_events].sort((a, b) => 
+                        new Date(b.last_mentioned) - new Date(a.last_mentioned)
+                    );
+                    
+                    memoryPrompt += '以下是你和用户交互时，你产生的记忆片段和你对于事件的情绪，你应该深深记住并且基于以上事实对用户的最新消息进行回复（越靠前的记忆越重要）：\n\n';
+                    
+                    sortedMemories.forEach((m, i) => {
+                        const date = new Date(m.last_mentioned).toLocaleDateString('zh-CN');
+                        memoryPrompt += `${i + 1}. ${m.title}（${date}`;
+                        if (m.mention_count) {
+                            memoryPrompt += `，提及${m.mention_count}次`;
+                        }
+                        memoryPrompt += `）\n`;
+                        memoryPrompt += `${m.content}\n`;
+                        if (m.assistant_attitude) {
+                            memoryPrompt += `你的态度: ${m.assistant_attitude}\n`;
+                        }
+                        memoryPrompt += '\n';
                     });
                 }
                 
+                memoryPrompt += '=== 记忆结束 ===\n';
                 finalSystemPrompt += memoryPrompt;
             }
             
