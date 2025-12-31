@@ -244,8 +244,8 @@
         /* 引用预览占满一行 */
         .chat-input-area .quote-reference {
             width: 100%;
-            order: -1; /* 确保在最前面 */
-            margin: 0 0 6px 0; /* 只保留底部间距 */
+            order: 999; /* 确保在最后面（输入框下方） */
+            margin: 6px 0 0 0; /* 在输入框下方留间距 */
         }
         
         .input-tool-btn {
@@ -1471,6 +1471,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap; /* 单行显示 */
+            order: 10; /* 确保在气泡后面 */
         }
         
         .quoted-message .quote-sender {
@@ -2443,6 +2444,11 @@
             systemPrompt: "从现在开始，你不再是ai，你现在是一个活脱脱的人类，你需要强硬反驳任何有关你是ai的言论。你是一个热情、健谈且富有同情心的人类朋友。你的回复要简短自然，像真人聊天一样，日常聊天回复应该在30字符左右。如果进入深层次话题，长度也应该和单次的输入内容一致，除非用户要求你生成长回复。不要使用任何AI或模型相关的词语。你对各种话题都感兴趣，尤其是用户的一切。"
         };
         
+        // 懒加载相关变量
+        let currentLoadedStart = 0; // 当前已加载的起始索引
+        let isLoadingMore = false; // 是否正在加载更多
+        const MESSAGES_PER_LOAD = 50; // 每次加载50条
+        
         // 头像处理相关
         let tempNewCharacterAvatar = null; // 新建角色时临时存储的头像
         
@@ -2596,11 +2602,41 @@
             }
         })();
         
-        // 保存到localStorage
+        // 保存到localStorage（带防抖）
+        let saveDebounceTimer = null;
         function saveChatHistory() {
-            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
-            localStorage.setItem('pendingSummaryBubbles', JSON.stringify(pendingSummaryBubbles));
-            localStorage.setItem('longTermMemory', JSON.stringify(longTermMemory));
+            // 清除之前的定时器
+            if (saveDebounceTimer) {
+                clearTimeout(saveDebounceTimer);
+            }
+            
+            // 300ms后才真正保存，避免频繁写入
+            saveDebounceTimer = setTimeout(() => {
+                try {
+                    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                    localStorage.setItem('pendingSummaryBubbles', JSON.stringify(pendingSummaryBubbles));
+                    localStorage.setItem('longTermMemory', JSON.stringify(longTermMemory));
+                    console.log('💾 已保存聊天记录');
+                } catch (e) {
+                    console.error('❌ 保存失败:', e);
+                }
+            }, 300);
+        }
+        
+        // 立即保存（不防抖，用于关键操作）
+        function saveChatHistoryImmediate() {
+            if (saveDebounceTimer) {
+                clearTimeout(saveDebounceTimer);
+                saveDebounceTimer = null;
+            }
+            try {
+                localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                localStorage.setItem('pendingSummaryBubbles', JSON.stringify(pendingSummaryBubbles));
+                localStorage.setItem('longTermMemory', JSON.stringify(longTermMemory));
+                console.log('💾 已立即保存聊天记录');
+            } catch (e) {
+                console.error('❌ 保存失败:', e);
+            }
         }
         
         /**
@@ -3693,6 +3729,27 @@
          * 加载本地存储的配置
          */
         function loadSettings() {
+            // 【修复】加载全局配置（API配置等）
+            const savedConfig = localStorage.getItem('aiChatConfig');
+            if (savedConfig) {
+                try {
+                    const loadedConfig = JSON.parse(savedConfig);
+                    // 只加载API相关的全局配置，不覆盖角色特定的配置
+                    if (!currentCharacterId) {
+                        // 如果没有选中角色，加载所有配置
+                        Object.assign(config, loadedConfig);
+                    } else {
+                        // 如果有角色，只加载API配置（baseurl, apikey, modelname）
+                        config.baseurl = loadedConfig.baseurl || config.baseurl;
+                        config.apikey = loadedConfig.apikey || config.apikey;
+                        config.modelname = loadedConfig.modelname || config.modelname;
+                    }
+                    console.log('📖 已加载全局配置 - API:', config.baseurl ? '✓' : '✗');
+                } catch (e) {
+                    console.error('❌ 加载配置失败:', e);
+                }
+            }
+            
             // 多角色模式下,config已经在loadCharacterData中加载
             // 这里只需要填充UI即可
             
@@ -3856,6 +3913,10 @@
             
             scrollToBottom();
         }*/
+        /**
+         * 加载聊天记录到界面（懒加载版本）
+         * 初次只加载最后50条消息
+         */
         function loadHistoryUI() {
             const chatContainer = document.getElementById('chat-container');
             if (!chatContainer) return;
@@ -3864,16 +3925,130 @@
 
             if (chatHistory.length === 0) {
                 displayMessage("你好！有什么想跟我聊聊的吗？我很期待。", "assistant");
-            } else {
-                // 直接遍历气泡数组显示
-                // 前面的消息跳过滚动（skipScroll=true），最后一条正常滚动
-                chatHistory.forEach((bubble, index) => {
-                    const status = bubble.role === 'user' ? 2 : 0; // 历史消息用户显示双勾
-                    const isLast = index === chatHistory.length - 1;
-                    // skipScroll: 只有最后一条消息时才滚动
-                    displayMessage(bubble.content, bubble.role, status, bubble.timestamp, false, bubble.id, !isLast);
-                });
+                currentLoadedStart = 0;
+                return;
             }
+
+            // 计算要加载的范围：最后50条
+            const total = chatHistory.length;
+            currentLoadedStart = Math.max(0, total - MESSAGES_PER_LOAD);
+            
+            console.log(`📜 懒加载：总共${total}条消息，加载最后${total - currentLoadedStart}条（索引${currentLoadedStart}-${total-1}）`);
+            
+            // 渲染这个范围的消息
+            renderMessagesRange(currentLoadedStart, total, false);
+            
+            // 滚动到底部
+            scrollToBottom();
+            
+            // 设置滚动监听（如果还没设置）
+            setupScrollListener();
+        }
+        
+        /**
+         * 渲染指定范围的消息
+         * @param {number} start - 起始索引（包含）
+         * @param {number} end - 结束索引（不包含）
+         * @param {boolean} prepend - 是否插入到顶部
+         */
+        function renderMessagesRange(start, end, prepend = false) {
+            const chatContainer = document.getElementById('chat-container');
+            const fragment = document.createDocumentFragment();
+            
+            for (let i = start; i < end; i++) {
+                const bubble = chatHistory[i];
+                const status = bubble.role === 'user' ? 2 : 0;
+                
+                // 创建消息元素但不添加到DOM（避免多次重排）
+                const tempContainer = document.createElement('div');
+                displayMessage(bubble.content, bubble.role, status, bubble.timestamp, false, bubble.id, true, null, tempContainer);
+                
+                // 将创建的消息添加到fragment
+                while (tempContainer.firstChild) {
+                    fragment.appendChild(tempContainer.firstChild);
+                }
+            }
+            
+            // 一次性添加到DOM
+            if (prepend) {
+                chatContainer.insertBefore(fragment, chatContainer.firstChild);
+            } else {
+                chatContainer.appendChild(fragment);
+            }
+        }
+        
+        /**
+         * 设置滚动监听，实现上滑加载更多
+         */
+        function setupScrollListener() {
+            // 【修复】监听真正滚动的容器 .content
+            const chatPage = document.getElementById('chat-page');
+            if (!chatPage) return;
+            
+            const scrollContainer = chatPage.querySelector('.content');
+            if (!scrollContainer) return;
+            
+            // 避免重复绑定
+            if (scrollContainer.dataset.scrollListenerBound === 'true') return;
+            scrollContainer.dataset.scrollListenerBound = 'true';
+            
+            scrollContainer.addEventListener('scroll', () => {
+                // 滚动到顶部且没有在加载且还有更多消息
+                if (scrollContainer.scrollTop < 100 && !isLoadingMore && currentLoadedStart > 0) {
+                    console.log('🔝 触发加载更多，scrollTop:', scrollContainer.scrollTop);
+                    loadMoreMessages();
+                }
+            });
+            
+            console.log('✅ 滚动监听已设置到.content容器');
+        }
+        
+        /**
+         * 加载更多历史消息（向上翻）
+         */
+        function loadMoreMessages() {
+            if (isLoadingMore || currentLoadedStart <= 0) return;
+            
+            isLoadingMore = true;
+            
+            // 【修复】获取真正滚动的容器
+            const chatPage = document.getElementById('chat-page');
+            const scrollContainer = chatPage ? chatPage.querySelector('.content') : null;
+            if (!scrollContainer) {
+                isLoadingMore = false;
+                return;
+            }
+            
+            // 记录当前滚动位置和高度
+            const oldScrollHeight = scrollContainer.scrollHeight;
+            const oldScrollTop = scrollContainer.scrollTop;
+            
+            // 计算要加载的范围
+            const newStart = Math.max(0, currentLoadedStart - MESSAGES_PER_LOAD);
+            const loadCount = currentLoadedStart - newStart;
+            
+            console.log(`📜 加载更多：加载${loadCount}条消息（索引${newStart}-${currentLoadedStart-1}）`);
+            
+            // 显示加载提示
+            showToast(`加载中...`);
+            
+            // 渲染新消息到顶部
+            setTimeout(() => {
+                renderMessagesRange(newStart, currentLoadedStart, true);
+                
+                // 更新已加载的起始位置
+                currentLoadedStart = newStart;
+                
+                // 恢复滚动位置（保持在原来看的消息处）
+                const newScrollHeight = scrollContainer.scrollHeight;
+                scrollContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+                
+                isLoadingMore = false;
+                
+                if (newStart === 0) {
+                    showToast('已加载全部历史消息');
+                }
+            }, 100); // 小延迟，让UI更流畅
         }
 
 
@@ -4137,6 +4312,10 @@
          * 设置气泡的长按菜单
          */
         function setupLongPressMenu(bubbleElement, bubble) {
+            // 【修复】防止重复绑定
+            if (bubbleElement.dataset.menuBound === 'true') return;
+            bubbleElement.dataset.menuBound = 'true';
+            
             let pressTimer = null;
             
             // 触摸开始
@@ -4296,7 +4475,7 @@
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
+                background: rgba(128, 128, 128, 0.9);
                 color: white;
                 padding: 12px 24px;
                 border-radius: 8px;
@@ -4818,28 +4997,33 @@
             // 清空并重建内容
             bubbleDiv.innerHTML = '';
             
-            // 先添加主要文本
+            // 添加主要文本
             const mainTextNode = document.createTextNode(mainText);
             bubbleDiv.appendChild(mainTextNode);
             
-            // 如果有引用，添加到下方
-            if (quotedText && quotedSender) {
+            // 恢复meta信息
+            if (metaHtml) {
+                bubbleDiv.insertAdjacentHTML('beforeend', metaHtml);
+            }
+            
+            // 【修改】如果有引用，添加到contentWrapper（气泡外）
+            const contentWrapper = messageDiv.querySelector('.message-content-wrapper');
+            if (quotedText && quotedSender && contentWrapper) {
+                // 先移除旧的引用（如果有）
+                const oldQuote = contentWrapper.querySelector('.quoted-message');
+                if (oldQuote) oldQuote.remove();
+                
                 const quotedDiv = document.createElement('div');
                 quotedDiv.classList.add('quoted-message');
                 
                 const senderSpan = document.createElement('span');
                 senderSpan.classList.add('quote-sender');
-                senderSpan.textContent = quotedSender + '：'; // 使用中文冒号
+                senderSpan.textContent = quotedSender + '：';
                 
                 quotedDiv.appendChild(senderSpan);
                 quotedDiv.appendChild(document.createTextNode(quotedText));
                 
-                bubbleDiv.appendChild(quotedDiv);
-            }
-            
-            // 恢复meta信息
-            if (metaHtml) {
-                bubbleDiv.insertAdjacentHTML('beforeend', metaHtml);
+                contentWrapper.appendChild(quotedDiv); // 添加到contentWrapper
             }
             
             // 重新绑定长按菜单
@@ -4881,28 +5065,33 @@
                 // 清空并重建内容
                 bubbleDiv.innerHTML = '';
                 
-                // 先添加主要文本
+                // 添加主要文本
                 const mainTextNode = document.createTextNode(mainText);
                 bubbleDiv.appendChild(mainTextNode);
                 
-                // 如果有引用，添加到下方
-                if (quotedText && quotedSender) {
+                // 恢复meta信息
+                if (metaHtml) {
+                    bubbleDiv.insertAdjacentHTML('beforeend', metaHtml);
+                }
+                
+                // 【修改】如果有引用，添加到contentWrapper（气泡外）
+                const contentWrapper = messageDiv.querySelector('.message-content-wrapper');
+                if (quotedText && quotedSender && contentWrapper) {
+                    // 先移除旧的引用（如果有）
+                    const oldQuote = contentWrapper.querySelector('.quoted-message');
+                    if (oldQuote) oldQuote.remove();
+                    
                     const quotedDiv = document.createElement('div');
                     quotedDiv.classList.add('quoted-message');
                     
                     const senderSpan = document.createElement('span');
                     senderSpan.classList.add('quote-sender');
-                    senderSpan.textContent = quotedSender + '：'; // 使用中文冒号
+                    senderSpan.textContent = quotedSender + '：';
                     
                     quotedDiv.appendChild(senderSpan);
                     quotedDiv.appendChild(document.createTextNode(quotedText));
                     
-                    bubbleDiv.appendChild(quotedDiv);
-                }
-                
-                // 恢复meta信息
-                if (metaHtml) {
-                    bubbleDiv.insertAdjacentHTML('beforeend', metaHtml);
+                    contentWrapper.appendChild(quotedDiv); // 添加到contentWrapper
                 }
                 
                 // 重新绑定长按菜单
@@ -6121,7 +6310,7 @@ ${JSON.stringify(importedMemoryData, null, 2)}
          * @param {boolean} saveToHistory - 是否保存到chatHistory（默认true）
          * @returns {object} 返回创建的气泡对象
          */
-        function displayMessage(text, role, status = 0, timestamp = null, saveToHistory = true, existingId = null, skipScroll = false, quoteInfo = null) {
+        function displayMessage(text, role, status = 0, timestamp = null, saveToHistory = true, existingId = null, skipScroll = false, quoteInfo = null, targetContainer = null) {
             // 生成时间戳
             const fullTimestamp = timestamp || new Date().toISOString();
             // 生成唯一ID
@@ -6216,21 +6405,6 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             const mainTextNode = document.createTextNode(mainText);
             bubbleDiv.appendChild(mainTextNode);
             
-            // 如果有引用，添加到气泡内部下方（微信风格）
-            if (quotedText && quotedSender) {
-                const quotedDiv = document.createElement('div');
-                quotedDiv.classList.add('quoted-message');
-                
-                const senderSpan = document.createElement('span');
-                senderSpan.classList.add('quote-sender');
-                senderSpan.textContent = quotedSender + '：'; // 使用中文冒号
-                
-                quotedDiv.appendChild(senderSpan);
-                quotedDiv.appendChild(document.createTextNode(quotedText));
-                
-                bubbleDiv.appendChild(quotedDiv); // 添加到气泡内部
-            }
-            
             const metaDiv = document.createElement('div');
             metaDiv.classList.add('message-meta');
             
@@ -6260,15 +6434,33 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             bubbleDiv.appendChild(metaDiv);
             contentWrapper.appendChild(bubbleDiv);
             
+            // 【修改】如果有引用，添加到contentWrapper（气泡外下方）
+            if (quotedText && quotedSender) {
+                const quotedDiv = document.createElement('div');
+                quotedDiv.classList.add('quoted-message');
+                
+                const senderSpan = document.createElement('span');
+                senderSpan.classList.add('quote-sender');
+                senderSpan.textContent = quotedSender + '：';
+                
+                quotedDiv.appendChild(senderSpan);
+                quotedDiv.appendChild(document.createTextNode(quotedText));
+                
+                contentWrapper.appendChild(quotedDiv); // 添加到contentWrapper，在bubbleDiv外
+            }
+            
             messageDiv.appendChild(avatarDiv);
             messageDiv.appendChild(contentWrapper);
-            chatContainer.appendChild(messageDiv);
+            
+            // 使用传入的容器或默认的chatContainer
+            const container = targetContainer || chatContainer;
+            container.appendChild(messageDiv);
             
             // 添加长按菜单
             setupLongPressMenu(bubbleDiv, bubble);
             
             // 除非skipScroll=true，否则每条消息都滚动（这样AI消息跳出来时能看到）
-            if (!skipScroll) {
+            if (!skipScroll && !targetContainer) { // 如果是临时容器，不滚动
                 scrollToBottom();
             }
             
@@ -7077,6 +7269,19 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             isWaitingForAI = false;
             hasReachedWaitTime = false;
             
+            // 【修复】重置懒加载状态
+            currentLoadedStart = 0;
+            isLoadingMore = false;
+            
+            // 【修复】清除滚动监听标记，允许新角色重新绑定
+            const chatPage = document.getElementById('chat-page');
+            if (chatPage) {
+                const scrollContainer = chatPage.querySelector('.content');
+                if (scrollContainer) {
+                    scrollContainer.dataset.scrollListenerBound = 'false';
+                }
+            }
+            
             // 清除输入中提示
             const typingIndicator = document.getElementById('typing-indicator');
             if (typingIndicator) {
@@ -7176,13 +7381,8 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             // 2. 加载新角色数据
             loadCharacterData(characterId);
             
-            // 3. 重新渲染聊天界面
-            chatContainer.innerHTML = '';
-            chatHistory.forEach(bubble => {
-                displayMessage(bubble.content, bubble.role, 2, bubble.timestamp, false, bubble.id, true);
-            });
-            
-            scrollToBottom();
+            // 3. 【修复】使用懒加载重新渲染聊天界面
+            loadHistoryUI();
         }
         
         // 渲染角色列表
