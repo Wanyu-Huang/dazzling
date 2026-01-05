@@ -958,6 +958,361 @@
             background: rgba(0,0,0,0.05);
         }
         
+        /* ========== 多选模式样式（完全仿微信）========== */
+        
+        /* 多选模式激活时的聊天容器调整 */
+        .multi-select-mode-active #chat-container {
+            padding-left: 0; /* 移除padding */
+            padding-bottom: 80px; /* 为底部工具栏留出空间 */
+        }
+        
+        /* 多选模式下的消息整体右移 */
+        .multi-select-mode-active .message {
+            margin-left: 55px; /* 整体右移，为复选框留空间 */
+        }
+        
+        /* 多选模式下隐藏输入框 */
+        .multi-select-mode-active .chat-input-area {
+            display: none !important;
+        }
+        
+        /* 消息容器需要相对定位 */
+        .message {
+            position: relative;
+        }
+        
+        /* 多选模式下消息整体右移，避免与复选框重叠 */
+        .multi-select-mode-active .message {
+            margin-left: 40px; /* 向右移动，为复选框留出空间 */
+        }
+        
+        /* 复选框容器 - 默认隐藏 */
+        .multi-select-checkbox {
+            position: absolute;
+            left: -32px; /* 负值，使复选框显示在消息左侧 */
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 22px;
+            border: 1.5px solid #c8c8c8;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: all 0.15s;
+        }
+        
+        /* 多选模式激活时显示复选框 */
+        .multi-select-mode-active .multi-select-checkbox {
+            display: flex !important; /* 强制显示 */
+        }
+        
+        /* 选中状态的复选框 */
+        .multi-select-checkbox.checked {
+            background: #07c160;
+            border-color: #07c160;
+        }
+        
+        /* 选中状态的勾号 - 使用CSS绘制 */
+        .multi-select-checkbox.checked::after {
+            content: '';
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 1.5px 1.5px 0;
+            transform: rotate(45deg);
+            margin-bottom: 2px;
+        }
+        
+        /* 多选模式顶部工具栏 */
+        .multi-select-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: #EDEDED;
+            border-bottom: 0.5px solid #d9d9d9;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 2001;
+        }
+        
+        .multi-select-header.active {
+            display: flex;
+        }
+        
+        .multi-select-header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .multi-select-cancel-btn {
+            font-size: 17px;
+            color: #576b95;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .multi-select-cancel-btn:active {
+            opacity: 0.6;
+        }
+        
+        .multi-select-count {
+            font-size: 17px;
+            color: #000;
+        }
+        
+        .multi-select-select-all-btn {
+            font-size: 17px;
+            color: #576b95;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .multi-select-select-all-btn:active {
+            opacity: 0.6;
+        }
+        
+        /* 搜索框 */
+        .multi-select-search {
+            position: fixed;
+            top: 44px;
+            left: 0;
+            right: 0;
+            background: #EDEDED;
+            padding: 8px 12px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .multi-select-search.active {
+            display: block;
+        }
+        
+        .multi-select-search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: #fff;
+            font-size: 15px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        
+        /* Select按钮 */
+        .multi-select-btn-container {
+            position: fixed;
+            top: 104px;
+            left: 16px;
+            z-index: 2000;
+            display: none;
+        }
+        
+        .multi-select-btn-container.active {
+            display: block;
+        }
+        
+        .multi-select-select-btn {
+            background: white;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 14px;
+            color: #576b95;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .multi-select-select-btn:active {
+            background: #f0f0f0;
+        }
+        
+        /* 多选模式下聊天容器需要留出顶部空间 */
+        .multi-select-mode-active #chat-page .content {
+            padding-top: 104px; /* 为顶部工具栏和搜索框留空间 */
+        }
+        
+        /* 底部操作栏（完全仿微信 - 图标版）*/
+        .multi-select-toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #F7F7F7;
+            border-top: 0.5px solid #d9d9d9;
+            display: none;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 2000;
+            padding: 0 20px;
+        }
+        
+        .multi-select-toolbar.active {
+            display: flex;
+        }
+        
+        .multi-select-toolbar-btn {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 26px;
+            color: #000;
+            transition: opacity 0.2s;
+            gap: 2px;
+        }
+        
+        .multi-select-toolbar-btn:active {
+            opacity: 0.5;
+        }
+        
+        .multi-select-toolbar-btn.disabled {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        .multi-select-toolbar-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2px;
+        }
+        
+        .multi-select-toolbar-text {
+            font-size: 10px;
+            color: #000;
+            line-height: 1;
+        }
+        
+        /* ========== 收藏页面样式 ========== */
+        .favorite-item {
+            background: white;
+            margin-bottom: 10px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .favorite-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .favorite-sender {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .favorite-time {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .favorite-content {
+            font-size: 15px;
+            color: #333;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .favorite-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .favorite-action-btn {
+            font-size: 13px;
+            color: #576b95;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        
+        .favorite-action-btn:hover {
+            opacity: 0.7;
+        }
+        
+        .favorite-action-btn.delete {
+            color: #ff3b30;
+        }
+        
+        /* ========== 转发选择列表样式 ========== */
+        .forward-character-item {
+            background: white;
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #EDEDED;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .forward-character-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .forward-character-item:active {
+            background: #e8e8e8;
+        }
+        
+        .forward-character-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 6px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .forward-character-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .forward-character-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .forward-character-desc {
+            font-size: 13px;
+            color: #999;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
         /* 批量生成对话框 */
         .batch-generate-dialog {
             position: fixed;
@@ -1297,13 +1652,14 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            border-radius: 16px;
-            padding: 24px;
-            max-width: 320px;
-            width: 90%;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 0;
+            max-width: 280px;
+            width: 85%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             z-index: 10002;
             display: none;
+            overflow: hidden;
         }
         
         .confirm-dialog.active {
@@ -1311,59 +1667,58 @@
         }
         
         .confirm-dialog-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #333;
+            font-size: 17px;
+            font-weight: 500;
+            padding: 20px 20px 0 20px;
+            color: #000;
+            text-align: center;
         }
         
         .confirm-dialog-message {
             font-size: 14px;
             color: #666;
-            margin-bottom: 20px;
-            line-height: 1.5;
+            padding: 12px 20px 20px 20px;
+            line-height: 1.6;
+            text-align: center;
         }
         
         .confirm-dialog-buttons {
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            border-top: 0.5px solid #e0e0e0;
         }
         
         .confirm-dialog-button {
-            flex: 1;
-            padding: 12px;
+            width: 100%;
+            padding: 14px 16px;
             border: none;
-            border-radius: 8px;
-            font-size: 15px;
+            border-bottom: 0.5px solid #e0e0e0;
+            background: white;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.2s;
+            text-align: center;
+        }
+        
+        .confirm-dialog-button:last-child {
+            border-bottom: none;
+        }
+        
+        .confirm-dialog-button:active {
+            background: #f5f5f5;
         }
         
         .confirm-dialog-button.primary {
-            background: #007AFF;
-            color: white;
-        }
-        
-        .confirm-dialog-button.primary:hover {
-            background: #0056b3;
+            color: #576b95;
+            font-weight: 500;
         }
         
         .confirm-dialog-button.secondary {
-            background: #FF9500;
-            color: white;
-        }
-        
-        .confirm-dialog-button.secondary:hover {
-            background: #e68600;
+            color: #576b95;
         }
         
         .confirm-dialog-button.cancel {
-            background: #f0f0f0;
-            color: #333;
-        }
-        
-        .confirm-dialog-button.cancel:hover {
-            background: #e0e0e0;
+            color: #000;
         }
         
         /* ========== 编辑模式样式 ========== */
@@ -1769,14 +2124,92 @@
                 <span></span>
             </header>
             
-            <div class="content" style="background-color: #fff;">
-                <div style="padding: 100px 20px; text-align: center; color: #999;">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" style="margin: 0 auto 16px;">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <div style="font-size: 16px; margin-bottom: 8px;">个人中心</div>
-                    <div style="font-size: 14px;">敬请期待...</div>
+            <div class="content" style="background-color: #EDEDED; overflow-y: auto;">
+                <!-- 个人信息卡片 -->
+                <div style="background: white; margin-bottom: 10px; padding: 20px 16px;">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div id="me-page-avatar" style="width: 64px; height: 64px; border-radius: 6px; background: #07c160; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold;">我</div>
+                        <div style="flex: 1;">
+                            <div id="me-page-nickname" style="font-size: 20px; font-weight: 500; color: #333; margin-bottom: 4px;">用户昵称</div>
+                            <div style="font-size: 14px; color: #999;">微信号: dazzling_user</div>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </div>
+                </div>
+                
+                <!-- 功能列表 -->
+                <div style="background: white; margin-bottom: 10px;">
+                    <!-- 收藏 -->
+                    <div onclick="showFavoritesPage()" style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #EDEDED; cursor: pointer;">
+                        <div style="width: 40px; height: 40px; background: #ffc107; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                            <span style="font-size: 22px;">⭐</span>
+                        </div>
+                        <div style="flex: 1; font-size: 16px; color: #333;">收藏</div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span id="favorites-count" style="font-size: 14px; color: #999;">0</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                                <path d="M9 18l6-6-6-6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <!-- 相册（占位） -->
+                    <div style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #EDEDED; opacity: 0.5;">
+                        <div style="width: 40px; height: 40px; background: #5a9fe2; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                            <span style="font-size: 22px;">📷</span>
+                        </div>
+                        <div style="flex: 1; font-size: 16px; color: #333;">相册</div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 12px; color: #999;">开发中</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                                <path d="M9 18l6-6-6-6"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 其他功能 -->
+                <div style="background: white; margin-bottom: 10px;">
+                    <div style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #EDEDED; opacity: 0.5;">
+                        <div style="width: 40px; height: 40px; background: #ff9800; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                            <span style="font-size: 22px;">💳</span>
+                        </div>
+                        <div style="flex: 1; font-size: 16px; color: #333;">卡包</div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 12px; color: #999;">开发中</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                                <path d="M9 18l6-6-6-6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; padding: 14px 16px; opacity: 0.5;">
+                        <div style="width: 40px; height: 40px; background: #4caf50; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                            <span style="font-size: 22px;">😊</span>
+                        </div>
+                        <div style="flex: 1; font-size: 16px; color: #333;">表情</div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 12px; color: #999;">开发中</span>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                                <path d="M9 18l6-6-6-6"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 设置 -->
+                <div style="background: white;">
+                    <div onclick="openSettings()" style="display: flex; align-items: center; padding: 14px 16px; cursor: pointer;">
+                        <div style="width: 40px; height: 40px; background: #607d8b; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                            <span style="font-size: 22px;">⚙️</span>
+                        </div>
+                        <div style="flex: 1; font-size: 16px; color: #333;">设置</div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2">
+                            <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                    </div>
                 </div>
             </div>
             
@@ -1810,6 +2243,65 @@
                         <circle cx="12" cy="7" r="4"/>
                     </svg>
                     <span>我</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收藏页面 -->
+        <div id="favorites-page" class="page">
+            <header class="header">
+                <button onclick="showPage('me-page')">
+                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none">
+                        <path d="M9 1L1 9L9 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <span class="header-title">收藏</span>
+                <button onclick="clearAllFavorites()" style="font-size: 14px; color: #ff3b30;">清空</button>
+            </header>
+            
+            <div class="content" style="background-color: #EDEDED; overflow-y: auto;">
+                <div id="favorites-container"></div>
+                
+                <!-- 空状态 -->
+                <div id="favorites-empty" style="display: none; padding: 100px 20px; text-align: center; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⭐</div>
+                    <div style="font-size: 16px; margin-bottom: 8px;">暂无收藏</div>
+                    <div style="font-size: 14px;">长按消息可添加到收藏</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 转发选择页面 -->
+        <div id="forward-select-page" class="page">
+            <header class="header">
+                <button onclick="cancelForward()">
+                    <svg width="10" height="18" viewBox="0 0 10 18" fill="none">
+                        <path d="M9 1L1 9L9 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <span class="header-title">选择聊天</span>
+                <span></span>
+            </header>
+            
+            <div class="content" style="background-color: #EDEDED; overflow-y: auto;">
+                <!-- 搜索框 -->
+                <div style="background-color: #EDEDED; padding: 8px 12px; border-bottom: 1px solid #d9d9d9;">
+                    <div style="background-color: #fff; border-radius: 6px; padding: 6px 12px; display: flex; align-items: center; gap: 8px;">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <circle cx="8" cy="8" r="6.5" stroke="#999" stroke-width="1.5"/>
+                            <path d="M13 13L17 17" stroke="#999" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <input type="text" placeholder="搜索" id="forward-search-input" style="border: none; outline: none; flex: 1; font-size: 14px; background: transparent;">
+                    </div>
+                </div>
+                
+                <div id="forward-characters-list"></div>
+                
+                <!-- 空状态 -->
+                <div id="forward-empty" style="display: none; padding: 100px 20px; text-align: center; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
+                    <div style="font-size: 16px; margin-bottom: 8px;">暂无可转发的对象</div>
+                    <div style="font-size: 14px;">请先创建角色</div>
                 </div>
             </div>
         </div>
@@ -1863,6 +2355,62 @@
                         <line x1="12" y1="8" x2="12" y2="16"></line>
                         <line x1="8" y1="12" x2="16" y2="12"></line>
                     </svg>
+                </button>
+            </div>
+            
+            <!-- 多选模式顶部工具栏 -->
+            <div class="multi-select-header" id="multi-select-header">
+                <button class="multi-select-cancel-btn" onclick="exitMultiSelectMode()">取消</button>
+                <span class="multi-select-count" id="multi-select-count">已选择0条</span>
+                <span style="width: 40px;"></span>
+            </div>
+            
+            <!-- 多选模式搜索框 -->
+            <div class="multi-select-search" id="multi-select-search">
+                <input type="text" class="multi-select-search-input" placeholder="搜索">
+            </div>
+            
+            <!-- Select按钮 -->
+            <div class="multi-select-btn-container" id="multi-select-btn-container">
+                <button class="multi-select-select-btn" onclick="showToast('功能开发中')">
+                    <span id="select-btn-icon" style="font-size: 18px; font-weight: 900; line-height: 1;">▼</span>
+                    <span id="select-btn-text">选择</span>
+                </button>
+            </div>
+            
+            <!-- 多选模式底部工具栏 -->
+            <div class="multi-select-toolbar" id="multi-select-toolbar">
+                <button class="multi-select-toolbar-btn" onclick="confirmForwardType()">
+                    <div class="multi-select-toolbar-icon">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <polyline points="12 18 12 12"></polyline>
+                            <polyline points="9 15 12 12 15 15"></polyline>
+                        </svg>
+                    </div>
+                    <div class="multi-select-toolbar-text">转发</div>
+                </button>
+                <button class="multi-select-toolbar-btn" onclick="favoriteSelectedMessages()">
+                    <div class="multi-select-toolbar-icon">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
+                        </svg>
+                    </div>
+                    <div class="multi-select-toolbar-text">收藏</div>
+                </button>
+                <button class="multi-select-toolbar-btn delete" onclick="deleteSelectedMessages()">
+                    <div class="multi-select-toolbar-icon">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </div>
+                    <div class="multi-select-toolbar-text">删除</div>
+                </button>
+                <button class="multi-select-toolbar-btn" onclick="showMoreMultiSelectOptions()">
+                    <div class="multi-select-toolbar-icon" style="font-size: 24px; font-weight: bold; line-height: 1;">•••</div>
+                    <div class="multi-select-toolbar-text">更多</div>
                 </button>
             </div>
         </div>
@@ -2509,6 +3057,10 @@
         // 每个气泡: { id, role, content, timestamp }
         let chatHistory = [];
         let pendingSummaryBubbles = []; // 待总结的气泡缓冲区
+        
+        // ========== 多选模式和收藏 ==========
+        let isMultiSelectMode = false;
+        let selectedBubbles = new Set();
         
         // ========== 长期记忆 ==========
         let longTermMemory = {
@@ -4367,6 +4919,20 @@
                 action: () => copyBubbleContent(bubble)
             });
             
+            // 第二项：转发
+            menuItems.push({
+                icon: '📤',
+                text: '转发',
+                action: () => forwardSingleMessage(bubble)
+            });
+            
+            // 第三项：收藏
+            menuItems.push({
+                icon: '⭐',
+                text: '收藏',
+                action: () => favoriteSingleMessage(bubble)
+            });
+            
             // 所有气泡都有的选项
             menuItems.push({
                 icon: '💬',
@@ -4378,6 +4944,12 @@
                 icon: '✏️',
                 text: '编辑',
                 action: () => editBubble(bubble)
+            });
+            
+            menuItems.push({
+                icon: '☑️',
+                text: '多选',
+                action: () => enterMultiSelectMode(bubble)
             });
             
             menuItems.push({
@@ -4529,7 +5101,7 @@
                             }
                         },
                         {
-                            text: '直接重新生成',
+                            text: '直接生成',
                             className: 'secondary',
                             action: async () => {
                                 await doRegenerate(bubbleIndex);
@@ -6476,6 +7048,11 @@ ${JSON.stringify(importedMemoryData, null, 2)}
             // 添加长按菜单
             setupLongPressMenu(bubbleDiv, bubble);
             
+            // 如果处于多选模式，添加复选框
+            if (isMultiSelectMode) {
+                addMultiSelectCheckbox(messageDiv, bubble.id);
+            }
+            
             // 除非skipScroll=true，否则每条消息都滚动（这样AI消息跳出来时能看到）
             if (!skipScroll && !targetContainer) { // 如果是临时容器，不滚动
                 scrollToBottom();
@@ -8325,6 +8902,906 @@ ${JSON.stringify(importedMemoryData, null, 2)}
                 clearTimeout(notificationTimeout);
                 notificationTimeout = null;
             }
+        }
+        
+        // ==================== 收藏功能 ====================
+        
+        /**
+         * 获取收藏列表
+         */
+        function getFavorites() {
+            try {
+                if (!currentCharacterId) return [];
+                const key = `char_${currentCharacterId}_favorites`;
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : [];
+            } catch (error) {
+                console.error('❌ 获取收藏列表失败:', error);
+                return [];
+            }
+        }
+        
+        /**
+         * 保存收藏列表
+         */
+        function saveFavorites(favorites) {
+            try {
+                if (!currentCharacterId) return;
+                const key = `char_${currentCharacterId}_favorites`;
+                localStorage.setItem(key, JSON.stringify(favorites));
+                console.log('✅ 收藏列表已保存');
+            } catch (error) {
+                console.error('❌ 保存收藏列表失败:', error);
+            }
+        }
+        
+        /**
+         * 收藏单条消息
+         */
+        function favoriteSingleMessage(bubble) {
+            const favorites = getFavorites();
+            
+            // 检查是否已收藏
+            const exists = favorites.find(fav => fav.id === bubble.id);
+            if (exists) {
+                showToast('该消息已在收藏中');
+                return;
+            }
+            
+            // 添加到收藏
+            const favoriteItem = {
+                id: bubble.id,
+                content: bubble.content,
+                role: bubble.role,
+                timestamp: bubble.timestamp || new Date().toISOString(),
+                favoritedAt: new Date().toISOString(),
+                senderName: bubble.role === 'user' ? config.userNickname : config.aiNickname
+            };
+            
+            favorites.unshift(favoriteItem); // 新收藏放在最前面
+            saveFavorites(favorites);
+            showToast('已添加到收藏');
+            console.log('⭐ 收藏消息:', bubble.id);
+        }
+        
+        /**
+         * 批量收藏消息
+         */
+        function favoriteMultipleMessages(bubbles) {
+            const favorites = getFavorites();
+            let addedCount = 0;
+            
+            bubbles.forEach(bubble => {
+                // 检查是否已收藏
+                const exists = favorites.find(fav => fav.id === bubble.id);
+                if (!exists) {
+                    const favoriteItem = {
+                        id: bubble.id,
+                        content: bubble.content,
+                        role: bubble.role,
+                        timestamp: bubble.timestamp || new Date().toISOString(),
+                        favoritedAt: new Date().toISOString(),
+                        senderName: bubble.role === 'user' ? config.userNickname : config.aiNickname
+                    };
+                    favorites.unshift(favoriteItem);
+                    addedCount++;
+                }
+            });
+            
+            if (addedCount > 0) {
+                saveFavorites(favorites);
+                showToast(`已添加 ${addedCount} 条消息到收藏`);
+                console.log('⭐ 批量收藏:', addedCount, '条消息');
+            } else {
+                showToast('所有消息已在收藏中');
+            }
+        }
+        
+        // ==================== 多选模式功能 ====================
+        
+        /**
+         * 进入多选模式
+         */
+        function enterMultiSelectMode(initialBubble = null) {
+            console.log('🎯 进入多选模式，初始气泡:', initialBubble);
+            
+            isMultiSelectMode = true;
+            selectedBubbles.clear();
+            
+            // 如果有初始选中的气泡，添加到选中列表
+            if (initialBubble) {
+                selectedBubbles.add(initialBubble.id);
+                console.log('✅ 添加初始选中气泡:', initialBubble.id);
+            }
+            
+            // 添加多选模式样式
+            document.body.classList.add('multi-select-mode-active');
+            console.log('✅ 添加body样式类');
+            
+            // 显示顶部工具栏
+            const header = document.getElementById('multi-select-header');
+            if (header) {
+                header.classList.add('active');
+                console.log('✅ 显示顶部工具栏');
+            } else {
+                console.error('❌ 未找到顶部工具栏元素');
+            }
+            
+            // 显示搜索框
+            const search = document.getElementById('multi-select-search');
+            if (search) {
+                search.classList.add('active');
+                console.log('✅ 显示搜索框');
+            }
+            
+            // 显示Select按钮
+            const btnContainer = document.getElementById('multi-select-btn-container');
+            if (btnContainer) {
+                btnContainer.classList.add('active');
+                console.log('✅ 显示Select按钮');
+            }
+            
+            // 显示底部工具栏
+            const toolbar = document.getElementById('multi-select-toolbar');
+            if (toolbar) {
+                toolbar.classList.add('active');
+                console.log('✅ 显示底部工具栏');
+            } else {
+                console.error('❌ 未找到底部工具栏元素');
+            }
+            
+            // 隐藏聊天页面的header
+            const chatHeader = document.querySelector('#chat-page .header');
+            if (chatHeader) {
+                chatHeader.style.display = 'none';
+            }
+            
+            // 为所有消息添加复选框
+            renderMultiSelectCheckboxes();
+            
+            // 更新选中数量显示
+            updateMultiSelectInfo();
+            
+            console.log('✅ 进入多选模式完成');
+        }
+        
+        /**
+         * 退出多选模式
+         */
+        function exitMultiSelectMode() {
+            isMultiSelectMode = false;
+            selectedBubbles.clear();
+            
+            // 移除多选模式样式
+            document.body.classList.remove('multi-select-mode-active');
+            
+            // 隐藏顶部工具栏
+            const header = document.getElementById('multi-select-header');
+            if (header) {
+                header.classList.remove('active');
+            }
+            
+            // 隐藏搜索框
+            const search = document.getElementById('multi-select-search');
+            if (search) {
+                search.classList.remove('active');
+            }
+            
+            // 隐藏Select按钮
+            const btnContainer = document.getElementById('multi-select-btn-container');
+            if (btnContainer) {
+                btnContainer.classList.remove('active');
+            }
+            
+            // 隐藏底部工具栏
+            const toolbar = document.getElementById('multi-select-toolbar');
+            if (toolbar) {
+                toolbar.classList.remove('active');
+            }
+            
+            // 显示聊天页面的header
+            const chatHeader = document.querySelector('#chat-page .header');
+            if (chatHeader) {
+                chatHeader.style.display = 'flex';
+            }
+            
+            // 移除所有消息的左margin
+            const messages = document.querySelectorAll('#chat-container .message');
+            messages.forEach(messageEl => {
+                messageEl.style.marginLeft = '';
+                
+                // 移除点击事件监听器
+                if (messageEl._multiSelectClickHandler) {
+                    messageEl.removeEventListener('click', messageEl._multiSelectClickHandler);
+                    delete messageEl._multiSelectClickHandler;
+                }
+            });
+            
+            // 移除所有复选框
+            document.querySelectorAll('.multi-select-checkbox').forEach(checkbox => {
+                checkbox.remove();
+            });
+            
+            console.log('✅ 退出多选模式');
+        }
+        
+        /**
+         * 为单个消息添加多选复选框
+         */
+        function addMultiSelectCheckbox(messageEl, bubbleId) {
+            // 如果已有复选框，跳过
+            if (messageEl.querySelector('.multi-select-checkbox')) {
+                console.log('⏭️ 跳过已有复选框的消息:', bubbleId);
+                return;
+            }
+            
+            // 创建复选框
+            const checkbox = document.createElement('div');
+            checkbox.className = 'multi-select-checkbox';
+            if (selectedBubbles.has(bubbleId)) {
+                checkbox.classList.add('checked');
+            }
+            
+            // 点击复选框切换选中状态
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                console.log('🖱️ 点击复选框:', bubbleId);
+                toggleBubbleSelection(bubbleId);
+            });
+            
+            // 添加到消息元素
+            messageEl.style.position = 'relative';
+            messageEl.appendChild(checkbox);
+            
+            // 为整条消息添加点击事件（点击消息也可以选中）
+            const messageClickHandler = (e) => {
+                // 如果点击的是复选框，不处理（已经在复选框的事件里处理了）
+                if (e.target.classList.contains('multi-select-checkbox')) {
+                    return;
+                }
+                
+                // 如果点击的是长按菜单、链接等，不处理
+                if (e.target.closest('.bubble-menu') || 
+                    e.target.tagName === 'A' || 
+                    e.target.closest('a')) {
+                    return;
+                }
+                
+                console.log('🖱️ 点击消息:', bubbleId);
+                toggleBubbleSelection(bubbleId);
+            };
+            
+            messageEl.addEventListener('click', messageClickHandler);
+            
+            // 保存事件处理器引用，以便之后移除
+            messageEl._multiSelectClickHandler = messageClickHandler;
+            
+            console.log('✅ 添加复选框和点击事件:', bubbleId);
+        }
+        
+        /**
+         * 渲染多选复选框
+         */
+        function renderMultiSelectCheckboxes() {
+            const messages = document.querySelectorAll('#chat-container .message');
+            console.log('📋 开始渲染复选框，找到消息数:', messages.length);
+            console.log('📋 多选模式状态:', isMultiSelectMode);
+            console.log('📋 body是否有multi-select-mode-active类:', document.body.classList.contains('multi-select-mode-active'));
+            
+            let addedCount = 0;
+            messages.forEach((messageEl, index) => {
+                // data-bubble-id 直接在 message 元素上
+                const bubbleId = messageEl.dataset.bubbleId;
+                if (!bubbleId) {
+                    console.warn('⚠️ 消息元素没有bubble-id, 索引:', index);
+                    return;
+                }
+                
+                addMultiSelectCheckbox(messageEl, bubbleId);
+                addedCount++;
+            });
+            
+            console.log(`✅ 完成渲染复选框，共添加 ${addedCount} 个`);
+            
+            // 验证复选框是否真的在DOM中
+            const checkboxes = document.querySelectorAll('.multi-select-checkbox');
+            console.log('✅ DOM中实际的复选框数量:', checkboxes.length);
+            if (checkboxes.length > 0) {
+                const firstCheckbox = checkboxes[0];
+                console.log('✅ 第一个复选框的display样式:', window.getComputedStyle(firstCheckbox).display);
+                console.log('✅ 第一个复选框的位置:', firstCheckbox.style.position || window.getComputedStyle(firstCheckbox).position);
+            }
+        }
+        
+        /**
+         * 切换气泡选中状态
+         */
+        function toggleBubbleSelection(bubbleId) {
+            if (selectedBubbles.has(bubbleId)) {
+                selectedBubbles.delete(bubbleId);
+                console.log('➖ 取消选中:', bubbleId);
+            } else {
+                selectedBubbles.add(bubbleId);
+                console.log('➕ 选中:', bubbleId);
+            }
+            
+            // 更新复选框状态 - 直接通过dataset查找message元素
+            const messages = document.querySelectorAll('#chat-container .message');
+            let foundMessage = null;
+            messages.forEach(msg => {
+                if (msg.dataset.bubbleId === bubbleId) {
+                    foundMessage = msg;
+                }
+            });
+            
+            if (foundMessage) {
+                const checkbox = foundMessage.querySelector('.multi-select-checkbox');
+                if (checkbox) {
+                    if (selectedBubbles.has(bubbleId)) {
+                        checkbox.classList.add('checked');
+                    } else {
+                        checkbox.classList.remove('checked');
+                    }
+                    console.log('✅ 更新复选框状态:', bubbleId, selectedBubbles.has(bubbleId));
+                } else {
+                    console.warn('⚠️ 未找到复选框元素:', bubbleId);
+                }
+            } else {
+                console.warn('⚠️ 未找到消息元素:', bubbleId);
+            }
+            
+            // 更新选中数量显示
+            updateMultiSelectInfo();
+            console.log('📊 当前选中数量:', selectedBubbles.size);
+        }
+        
+        /**
+         * 更新多选信息显示
+         */
+        function updateMultiSelectInfo() {
+            const count = selectedBubbles.size;
+            const countEl = document.getElementById('multi-select-count');
+            if (countEl) {
+                countEl.textContent = `已选择${count}条`;
+            }
+            
+            // 更新Select按钮文字
+            const selectBtnText = document.getElementById('select-btn-text');
+            const selectBtnIcon = document.getElementById('select-btn-icon');
+            if (selectBtnText && selectBtnIcon) {
+                const totalMessages = document.querySelectorAll('#chat-container .message').length;
+                if (count === totalMessages && count > 0) {
+                    selectBtnText.textContent = '取消选择';
+                    selectBtnIcon.textContent = '▲';
+                } else {
+                    selectBtnText.textContent = '选择';
+                    selectBtnIcon.textContent = '▼';
+                }
+            }
+            
+            // 更新底部按钮状态
+            const toolbarBtns = document.querySelectorAll('.multi-select-toolbar-btn');
+            toolbarBtns.forEach(btn => {
+                if (count === 0) {
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('disabled');
+                }
+            });
+        }
+        
+        /**
+         * 全选/取消全选
+         */
+        /**
+         * 选择功能（开发中）
+         */
+        function toggleSelectAll() {
+            showToast('选择功能开发中');
+        }
+        
+        /**
+         * 确认转发类型（从按钮调用的入口）
+         */
+        function confirmForwardType() {
+            forwardSelectedMessages();
+        }
+        
+        /**
+         * 转发选中的消息
+         */
+        function forwardSelectedMessages() {
+            if (selectedBubbles.size === 0) {
+                showToast('请先选择要转发的消息');
+                return;
+            }
+            
+            // 获取选中的气泡
+            const bubbles = chatHistory.filter(b => selectedBubbles.has(b.id));
+            
+            if (bubbles.length === 0) {
+                showToast('未找到选中的消息');
+                return;
+            }
+            
+            // 如果只选择了1条消息，直接转发
+            if (bubbles.length === 1) {
+                window.pendingForwardMessages = bubbles;
+                exitMultiSelectMode();
+                showForwardSelectPage();
+                return;
+            }
+            
+            // 多条消息时，询问转发方式
+            const choice = confirm('选择转发方式:\n\n点击"确定"进行【逐条转发】\n点击"取消"进行【合并转发】');
+            
+            if (choice) {
+                // 逐条转发
+                window.pendingForwardMessages = bubbles;
+            } else {
+                // 合并转发
+                const mergedContent = bubbles.map(b => {
+                    const sender = b.role === 'user' ? config.userNickname : config.aiNickname;
+                    return `${sender}：${b.content}`;
+                }).join('\n\n');
+                
+                const mergedMessage = {
+                    id: generateUniqueId(),
+                    role: 'user',
+                    content: `[合并转发 ${bubbles.length}条消息]\n\n${mergedContent}`,
+                    timestamp: new Date().toISOString()
+                };
+                
+                window.pendingForwardMessages = [mergedMessage];
+            }
+            
+            // 退出多选模式
+            exitMultiSelectMode();
+            
+            // 显示转发选择页面
+            showForwardSelectPage();
+        }
+        
+        /**
+         * 合并转发选中的消息
+         */
+        function mergeForwardSelectedMessages() {
+            if (selectedBubbles.size === 0) {
+                showToast('请先选择要转发的消息');
+                return;
+            }
+            
+            // 获取选中的气泡
+            const bubbles = chatHistory.filter(b => selectedBubbles.has(b.id));
+            
+            if (bubbles.length === 0) {
+                showToast('未找到选中的消息');
+                return;
+            }
+            
+            // 合并成一条消息
+            const mergedContent = bubbles.map(b => {
+                const sender = b.role === 'user' ? config.userNickname : config.aiNickname;
+                return `${sender}：${b.content}`;
+            }).join('\n\n');
+            
+            // 创建合并后的消息对象
+            const mergedMessage = {
+                id: generateUniqueId(),
+                role: 'user',
+                content: `[合并转发 ${bubbles.length}条消息]\n\n${mergedContent}`,
+                timestamp: new Date().toISOString()
+            };
+            
+            // 保存要转发的消息
+            window.pendingForwardMessages = [mergedMessage];
+            
+            // 退出多选模式
+            exitMultiSelectMode();
+            
+            // 显示转发选择页面
+            showForwardSelectPage();
+        }
+        
+        /**
+         * 显示更多选项（占位）
+         */
+        function showMoreOptions() {
+            showToast('更多功能开发中');
+        }
+        
+        /**
+         * 多选模式下的更多选项
+         */
+        function showMoreMultiSelectOptions() {
+            showToast('更多功能开发中');
+        }
+        
+        /**
+         * 收藏选中的消息
+         */
+        function favoriteSelectedMessages() {
+            if (selectedBubbles.size === 0) {
+                showToast('请先选择要收藏的消息');
+                return;
+            }
+            
+            // 获取选中的气泡
+            const bubbles = chatHistory.filter(b => selectedBubbles.has(b.id));
+            
+            if (bubbles.length === 0) {
+                showToast('未找到选中的消息');
+                return;
+            }
+            
+            // 批量收藏
+            favoriteMultipleMessages(bubbles);
+            
+            // 退出多选模式
+            exitMultiSelectMode();
+        }
+        
+        /**
+         * 删除选中的消息
+         */
+        function deleteSelectedMessages() {
+            if (selectedBubbles.size === 0) {
+                showToast('请先选择要删除的消息');
+                return;
+            }
+            
+            const selectedCount = selectedBubbles.size;
+            
+            // 二次确认
+            if (!confirm(`确定要删除选中的 ${selectedCount} 条消息吗？`)) {
+                return;
+            }
+            
+            console.log('🗑️ 准备删除消息:', Array.from(selectedBubbles));
+            
+            // 删除选中的气泡
+            let deletedCount = 0;
+            selectedBubbles.forEach(bubbleId => {
+                // 从聊天记录中删除
+                const beforeLength = chatHistory.length;
+                chatHistory = chatHistory.filter(b => b.id !== bubbleId);
+                pendingSummaryBubbles = pendingSummaryBubbles.filter(b => b.id !== bubbleId);
+                
+                if (chatHistory.length < beforeLength) {
+                    deletedCount++;
+                }
+                
+                // 从UI中删除 - 使用更精确的选择器
+                const bubbleElement = document.querySelector(`[data-bubble-id="${bubbleId}"]`);
+                if (bubbleElement) {
+                    const messageDiv = bubbleElement.closest('.message');
+                    if (messageDiv) {
+                        messageDiv.remove();
+                        console.log('✅ 删除UI元素:', bubbleId);
+                    }
+                } else {
+                    console.warn('⚠️ 未找到气泡元素:', bubbleId);
+                }
+            });
+            
+            // 保存更改
+            saveChatHistory();
+            
+            showToast(`已删除 ${deletedCount} 条消息`);
+            console.log('🗑️ 批量删除完成:', deletedCount, '条消息');
+            
+            // 退出多选模式
+            exitMultiSelectMode();
+        }
+        
+        /**
+         * 转发单条消息
+         */
+        function forwardSingleMessage(bubble) {
+            // 保存要转发的消息
+            window.pendingForwardMessages = [bubble];
+            // 显示转发选择页面
+            showForwardSelectPage();
+        }
+        
+        // ==================== 转发功能 ====================
+        
+        /**
+         * 显示转发选择页面
+         */
+        function showForwardSelectPage() {
+            console.log('📤 显示转发选择页面');
+            
+            // 渲染角色列表
+            renderForwardCharactersList();
+            
+            // 显示页面
+            showPage('forward-select-page');
+        }
+        
+        /**
+         * 渲染转发目标角色列表
+         */
+        function renderForwardCharactersList() {
+            const container = document.getElementById('forward-characters-list');
+            const emptyEl = document.getElementById('forward-empty');
+            
+            if (!container) return;
+            
+            // 过滤掉当前角色
+            const availableCharacters = charactersList.filter(c => c.id !== currentCharacterId);
+            
+            if (availableCharacters.length === 0) {
+                container.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+            
+            if (emptyEl) emptyEl.style.display = 'none';
+            
+            container.innerHTML = availableCharacters.map(character => {
+                const avatar = character.aiAvatar || '';
+                const name = character.aiNickname || character.name || '未命名';
+                const desc = `与 ${character.userNickname || '我'} 的对话`;
+                
+                return `
+                    <div class="forward-character-item" onclick="confirmForward('${character.id}')">
+                        <div class="forward-character-avatar">
+                            ${avatar ? 
+                                `<img src="${avatar}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">` :
+                                `<div class="default-avatar ai" style="width: 100%; height: 100%; border-radius: 6px; font-size: 20px;">${name.substring(0, 1)}</div>`
+                            }
+                        </div>
+                        <div class="forward-character-info">
+                            <div class="forward-character-name">${escapeHtml(name)}</div>
+                            <div class="forward-character-desc">${escapeHtml(desc)}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            console.log('✅ 渲染转发列表完成，共', availableCharacters.length, '个角色');
+        }
+        
+        /**
+         * 确认转发到指定角色
+         */
+        function confirmForward(targetCharacterId) {
+            if (!window.pendingForwardMessages || window.pendingForwardMessages.length === 0) {
+                showToast('没有要转发的消息');
+                return;
+            }
+            
+            const targetCharacter = charactersList.find(c => c.id === targetCharacterId);
+            if (!targetCharacter) {
+                showToast('目标角色不存在');
+                return;
+            }
+            
+            const messageCount = window.pendingForwardMessages.length;
+            const targetName = targetCharacter.aiNickname || targetCharacter.name || '该角色';
+            
+            if (!confirm(`确定要转发 ${messageCount} 条消息到「${targetName}」吗？`)) {
+                return;
+            }
+            
+            console.log('📤 开始转发消息到角色:', targetCharacterId);
+            
+            // 加载目标角色的数据
+            const targetConfigKey = `char_${targetCharacterId}_config`;
+            const targetHistoryKey = `char_${targetCharacterId}_chatHistory`;
+            
+            let targetConfig = localStorage.getItem(targetConfigKey);
+            let targetHistory = localStorage.getItem(targetHistoryKey);
+            
+            if (!targetConfig) {
+                showToast('目标角色配置不存在');
+                return;
+            }
+            
+            targetConfig = JSON.parse(targetConfig);
+            targetHistory = targetHistory ? JSON.parse(targetHistory) : [];
+            
+            // 将消息添加到目标角色的聊天记录
+            const currentTime = new Date().toISOString();
+            window.pendingForwardMessages.forEach(msg => {
+                const forwardedMessage = {
+                    id: generateUniqueId(),
+                    role: 'user', // 转发的消息作为用户消息
+                    content: `[转发] ${msg.content}`,
+                    timestamp: currentTime,
+                    status: 2
+                };
+                targetHistory.push(forwardedMessage);
+            });
+            
+            // 保存到目标角色
+            localStorage.setItem(targetHistoryKey, JSON.stringify(targetHistory));
+            
+            showToast(`已转发 ${messageCount} 条消息到「${targetName}」`);
+            console.log('✅ 转发完成');
+            
+            // 清理并返回
+            window.pendingForwardMessages = null;
+            
+            // 返回之前的页面
+            if (currentCharacterId) {
+                showPage('chat-page');
+            } else {
+                showPage('chat-list-page');
+            }
+        }
+        
+        /**
+         * 取消转发
+         */
+        function cancelForward() {
+            window.pendingForwardMessages = null;
+            
+            // 返回之前的页面
+            if (currentCharacterId) {
+                showPage('chat-page');
+            } else {
+                showPage('chat-list-page');
+            }
+        }
+        
+        // ==================== 收藏查看功能 ====================
+        
+        /**
+         * 显示收藏页面
+         */
+        function showFavoritesPage() {
+            console.log('⭐ 显示收藏页面');
+            renderFavoritesPage();
+            showPage('favorites-page');
+        }
+        
+        /**
+         * 渲染收藏页面
+         */
+        function renderFavoritesPage() {
+            const favorites = getFavorites();
+            const container = document.getElementById('favorites-container');
+            const emptyEl = document.getElementById('favorites-empty');
+            
+            if (!container) return;
+            
+            if (favorites.length === 0) {
+                container.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+            
+            if (emptyEl) emptyEl.style.display = 'none';
+            
+            container.innerHTML = favorites.map(fav => {
+                const time = new Date(fav.favoritedAt);
+                const timeStr = `${time.getMonth() + 1}/${time.getDate()} ${time.getHours()}:${time.getMinutes().toString().padStart(2, '0')}`;
+                
+                return `
+                    <div class="favorite-item" data-favorite-id="${fav.id}">
+                        <div class="favorite-header">
+                            <span class="favorite-sender">${escapeHtml(fav.senderName)}</span>
+                            <span class="favorite-time">${timeStr}</span>
+                        </div>
+                        <div class="favorite-content">${escapeHtml(fav.content)}</div>
+                        <div class="favorite-actions">
+                            <button class="favorite-action-btn" onclick="sendFavoriteToChat('${fav.id}')">发送到聊天</button>
+                            <button class="favorite-action-btn delete" onclick="removeFavorite('${fav.id}')">删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            console.log('✅ 渲染收藏完成，共', favorites.length, '条');
+        }
+        
+        /**
+         * 从收藏中删除
+         */
+        function removeFavorite(favoriteId) {
+            if (!confirm('确定要取消收藏这条消息吗？')) {
+                return;
+            }
+            
+            let favorites = getFavorites();
+            favorites = favorites.filter(fav => fav.id !== favoriteId);
+            saveFavorites(favorites);
+            
+            // 重新渲染
+            renderFavoritesPage();
+            
+            // 更新收藏数量
+            updateFavoritesCount();
+            
+            showToast('已取消收藏');
+            console.log('🗑️ 删除收藏:', favoriteId);
+        }
+        
+        /**
+         * 发送收藏到当前聊天
+         */
+        function sendFavoriteToChat(favoriteId) {
+            if (!currentCharacterId) {
+                showToast('请先选择一个聊天对象');
+                return;
+            }
+            
+            const favorites = getFavorites();
+            const favorite = favorites.find(fav => fav.id === favoriteId);
+            
+            if (!favorite) {
+                showToast('收藏不存在');
+                return;
+            }
+            
+            // 返回聊天页面
+            showPage('chat-page');
+            
+            // 将收藏内容填入输入框
+            const userInput = document.getElementById('user-input');
+            if (userInput) {
+                userInput.value = `[收藏] ${favorite.content}`;
+                userInput.focus();
+            }
+            
+            showToast('已填入输入框');
+        }
+        
+        /**
+         * 清空所有收藏
+         */
+        function clearAllFavorites() {
+            const favorites = getFavorites();
+            if (favorites.length === 0) {
+                showToast('收藏为空');
+                return;
+            }
+            
+            if (!confirm(`确定要清空所有 ${favorites.length} 条收藏吗？此操作不可恢复！`)) {
+                return;
+            }
+            
+            saveFavorites([]);
+            renderFavoritesPage();
+            updateFavoritesCount();
+            
+            showToast('已清空收藏');
+            console.log('🗑️ 清空所有收藏');
+        }
+        
+        /**
+         * 更新收藏数量显示
+         */
+        function updateFavoritesCount() {
+            const favorites = getFavorites();
+            const countEl = document.getElementById('favorites-count');
+            if (countEl) {
+                countEl.textContent = favorites.length.toString();
+            }
+        }
+        
+        /**
+         * 更新"我"页面的用户信息
+         */
+        function updateMePageInfo() {
+            // 更新头像
+            const avatarEl = document.getElementById('me-page-avatar');
+            if (avatarEl && config.userAvatar) {
+                avatarEl.innerHTML = `<img src="${config.userAvatar}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px;">`;
+            } else if (avatarEl) {
+                avatarEl.textContent = config.userNickname ? config.userNickname.substring(0, 1) : '我';
+            }
+            
+            // 更新昵称
+            const nicknameEl = document.getElementById('me-page-nickname');
+            if (nicknameEl) {
+                nicknameEl.textContent = config.userNickname || '用户昵称';
+            }
+            
+            // 更新收藏数量
+            updateFavoritesCount();
         }
         
         
