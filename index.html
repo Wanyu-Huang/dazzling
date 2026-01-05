@@ -4740,7 +4740,16 @@
          * 导出聊天记录为 JSON 文件
          */
         document.getElementById('export-btn').addEventListener('click', () => {
-            const dataStr = JSON.stringify(chatHistory, null, 2); // 格式化 JSON
+            // 导出包含所有必要数据的完整对象
+            const exportData = {
+                chatHistory: chatHistory,
+                longTermMemory: longTermMemory,
+                pendingSummaryBubbles: pendingSummaryBubbles,
+                exportTime: new Date().toISOString(),
+                characterId: currentCharacterId
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2); // 格式化 JSON
             const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
 
             const exportFileName = 'DazzleLight_Chat_Backup_' + new Date().toISOString().slice(0, 10) + '.json';
@@ -4752,6 +4761,8 @@
             document.body.appendChild(linkElement);
             linkElement.click();
             document.body.removeChild(linkElement);
+            
+            console.log('✅ 导出聊天记录完成');
         });
         
         /**
@@ -4773,22 +4784,60 @@
                 reader.onload = function(e) {
                     try {
                         const importedData = JSON.parse(e.target.result);
-                        chatHistory = importedData; 
-                        saveChatHistory();
                         
-                        // 重置待总结气泡缓冲区
-                        pendingSummaryBubbles = [];
-                        localStorage.setItem('pendingSummaryBubbles', JSON.stringify(pendingSummaryBubbles));
+                        // 兼容旧格式(直接导出chatHistory数组)和新格式(包含完整数据的对象)
+                        if (Array.isArray(importedData)) {
+                            // 旧格式：直接是chatHistory数组
+                            console.log('📥 检测到旧格式导入数据');
+                            chatHistory = importedData;
+                            // 重置其他数据
+                            pendingSummaryBubbles = [];
+                            // longTermMemory保持不变或重置
+                        } else if (importedData.chatHistory) {
+                            // 新格式：包含完整数据
+                            console.log('📥 检测到新格式导入数据');
+                            chatHistory = importedData.chatHistory || [];
+                            longTermMemory = importedData.longTermMemory || {
+                                basic_info: {},
+                                relationships: "",
+                                emotional_profile: "",
+                                important_events: [],
+                                metadata: {
+                                    total_messages: 0,
+                                    last_summary_at: 0,
+                                    last_updated: new Date().toISOString(),
+                                    version: 2,
+                                    next_memory_id: 1
+                                }
+                            };
+                            pendingSummaryBubbles = importedData.pendingSummaryBubbles || [];
+                        } else {
+                            throw new Error('不支持的文件格式');
+                        }
+                        
+                        // 保存到正确的localStorage键
+                        if (currentCharacterId) {
+                            localStorage.setItem(`char_${currentCharacterId}_chatHistory`, JSON.stringify(chatHistory));
+                            localStorage.setItem(`char_${currentCharacterId}_longTermMemory`, JSON.stringify(longTermMemory));
+                            localStorage.setItem(`char_${currentCharacterId}_pendingSummaryBubbles`, JSON.stringify(pendingSummaryBubbles));
+                        } else {
+                            // 兼容旧版本，保存到全局键
+                            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
+                            localStorage.setItem('longTermMemory', JSON.stringify(longTermMemory));
+                            localStorage.setItem('pendingSummaryBubbles', JSON.stringify(pendingSummaryBubbles));
+                        }
                         
                         // 重新渲染聊天
-                        renderChatHistory();
+                        loadHistoryUI();
                         
                         // 更新记忆状态显示
                         updateMemoryStatus();
                         
                         alert('✅ 聊天记录导入成功！');
+                        console.log('✅ 导入完成，chatHistory长度:', chatHistory.length);
                         event.target.value = ''; // 清空文件选择
                     } catch (error) {
+                        console.error('❌ 导入失败:', error);
                         alert('❌ 文件解析失败，请确保文件是有效的 JSON 格式。\n\n错误信息：' + error.message);
                         event.target.value = ''; // 清空文件选择
                     }
