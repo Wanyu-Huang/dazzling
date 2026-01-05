@@ -899,34 +899,41 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            padding: 8px 0;
+            padding: 10px;
             z-index: 10000;
-            min-width: 150px;
             display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            min-width: 270px;
         }
         
         .bubble-menu.active {
-            display: block;
+            display: grid;
         }
         
         .bubble-menu-item {
-            padding: 12px 20px;
+            padding: 12px 8px;
             cursor: pointer;
             user-select: none;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
-            font-size: 15px;
+            justify-content: center;
+            gap: 4px;
+            font-size: 13px;
             color: #333;
             transition: background 0.2s;
+            border-radius: 8px;
+            background: #f7f7f7;
+            text-align: center;
         }
         
         .bubble-menu-item:hover {
-            background: #f5f5f5;
+            background: #e8e8e8;
         }
         
         .bubble-menu-item:active {
-            background: #e8e8e8;
+            background: #d8d8d8;
         }
         
         .bubble-menu-item.danger {
@@ -934,7 +941,7 @@
         }
         
         .bubble-menu-item .icon {
-            font-size: 18px;
+            font-size: 20px;
         }
         
         /* 遮罩层 */
