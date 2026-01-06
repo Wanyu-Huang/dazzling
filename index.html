@@ -2452,8 +2452,19 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="modelname">Model Name (例如: gpt-3.5-turbo)</label>
-                    <input type="text" id="modelname" placeholder="模型名称">
+                    <label for="modelname">Model Name</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="modelname" style="flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background-color: white;">
+                            <option value="">-- 请先拉取模型列表 --</option>
+                        </select>
+                        <button onclick="fetchModels()" style="padding: 10px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; font-size: 14px;">
+                            🔄 拉取
+                        </button>
+                        <button onclick="testConnection()" style="padding: 10px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; font-size: 14px;">
+                            🔍 测试
+                        </button>
+                    </div>
+                    <div id="model-fetch-status" style="font-size: 12px; margin-top: 6px; color: #666;"></div>
                 </div>
                 
                 <h3>系统角色设置 </h3>
@@ -4324,7 +4335,28 @@
             // 填充设置页面的输入框
             document.getElementById('baseurl').value = config.baseurl || '';
             document.getElementById('apikey').value = config.apikey || '';
-            document.getElementById('modelname').value = config.modelname || 'gemini-2.5-pro';
+            
+            // 加载模型下拉框
+            const modelSelect = document.getElementById('modelname');
+            const savedModel = config.modelname || 'gemini-2.5-pro';
+            
+            // 如果下拉框中没有当前保存的模型,添加它作为选项
+            let modelExists = false;
+            for (let i = 0; i < modelSelect.options.length; i++) {
+                if (modelSelect.options[i].value === savedModel) {
+                    modelExists = true;
+                    break;
+                }
+            }
+            
+            if (!modelExists && savedModel) {
+                const option = document.createElement('option');
+                option.value = savedModel;
+                option.textContent = savedModel;
+                modelSelect.appendChild(option);
+            }
+            
+            modelSelect.value = savedModel;
             document.getElementById('system-prompt').value = config.systemPrompt || '';
             
             // 加载昵称
@@ -4618,7 +4650,11 @@
         function saveSettings() {
             config.baseurl = document.getElementById('baseurl').value.trim();
             config.apikey = document.getElementById('apikey').value.trim();
-            config.modelname = document.getElementById('modelname').value.trim();
+            
+            // 从下拉框获取选中的模型
+            const modelSelect = document.getElementById('modelname');
+            config.modelname = modelSelect.value.trim();
+            
             config.systemPrompt = document.getElementById('system-prompt').value.trim();
             
             // 保存昵称
@@ -4731,6 +4767,192 @@
         function closeSettings() {
             showPage('chat-page', document.querySelector('.nav-item:nth-child(2)'));
         }
+
+        /**
+         * 拉取模型列表
+         */
+        async function fetchModels() {
+            const baseurl = document.getElementById('baseurl').value.trim();
+            const apikey = document.getElementById('apikey').value.trim();
+            const statusEl = document.getElementById('model-fetch-status');
+            const modelSelect = document.getElementById('modelname');
+            
+            if (!baseurl) {
+                statusEl.textContent = '❌ 请先填写 Base URL';
+                statusEl.style.color = '#f44336';
+                return;
+            }
+            
+            if (!apikey) {
+                statusEl.textContent = '❌ 请先填写 API Key';
+                statusEl.style.color = '#f44336';
+                return;
+            }
+            
+            statusEl.textContent = '🔄 正在拉取模型列表...';
+            statusEl.style.color = '#2196F3';
+            
+            try {
+                // 确保URL格式正确
+                let url = baseurl.trim();
+                if (!url.endsWith('/')) {
+                    url += '/';
+                }
+                url += 'models';
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${apikey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // 检查返回的数据格式
+                if (!data.data || !Array.isArray(data.data)) {
+                    throw new Error('返回的数据格式不正确');
+                }
+                
+                // 清空现有选项
+                modelSelect.innerHTML = '';
+                
+                // 保存当前选中的模型
+                const currentModel = config.modelname;
+                
+                // 添加模型选项
+                if (data.data.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '-- 未找到可用模型 --';
+                    modelSelect.appendChild(option);
+                    statusEl.textContent = '⚠️ 未找到可用模型';
+                    statusEl.style.color = '#ff9800';
+                } else {
+                    data.data.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.id;
+                        option.textContent = model.id;
+                        modelSelect.appendChild(option);
+                    });
+                    
+                    // 如果之前有选中的模型，保持选中
+                    if (currentModel) {
+                        let found = false;
+                        for (let i = 0; i < modelSelect.options.length; i++) {
+                            if (modelSelect.options[i].value === currentModel) {
+                                modelSelect.value = currentModel;
+                                found = true;
+                                break;
+                            }
+                        }
+                        
+                        // 如果之前的模型不在列表中，选择第一个
+                        if (!found && modelSelect.options.length > 0) {
+                            modelSelect.selectedIndex = 0;
+                        }
+                    } else if (modelSelect.options.length > 0) {
+                        modelSelect.selectedIndex = 0;
+                    }
+                    
+                    statusEl.textContent = `✅ 成功拉取 ${data.data.length} 个模型`;
+                    statusEl.style.color = '#4CAF50';
+                }
+                
+                console.log('✅ 成功拉取模型列表:', data.data.length, '个模型');
+            } catch (error) {
+                console.error('❌ 拉取模型列表失败:', error);
+                statusEl.textContent = `❌ 拉取失败: ${error.message}`;
+                statusEl.style.color = '#f44336';
+                
+                // 添加一个默认选项
+                modelSelect.innerHTML = '<option value="">-- 拉取失败,请检查配置 --</option>';
+            }
+        }
+        
+        /**
+         * 测试API连接
+         */
+        async function testConnection() {
+            const baseurl = document.getElementById('baseurl').value.trim();
+            const apikey = document.getElementById('apikey').value.trim();
+            const modelSelect = document.getElementById('modelname');
+            const modelname = modelSelect.value.trim();
+            const statusEl = document.getElementById('model-fetch-status');
+            
+            if (!baseurl) {
+                statusEl.textContent = '❌ 请先填写 Base URL';
+                statusEl.style.color = '#f44336';
+                return;
+            }
+            
+            if (!apikey) {
+                statusEl.textContent = '❌ 请先填写 API Key';
+                statusEl.style.color = '#f44336';
+                return;
+            }
+            
+            if (!modelname) {
+                statusEl.textContent = '❌ 请先选择模型';
+                statusEl.style.color = '#f44336';
+                return;
+            }
+            
+            statusEl.textContent = '🔍 正在测试连接...';
+            statusEl.style.color = '#2196F3';
+            
+            try {
+                // 确保URL格式正确
+                let url = baseurl.trim();
+                if (!url.endsWith('/')) {
+                    url += '/';
+                }
+                url += 'chat/completions';
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apikey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: modelname,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: '你好'
+                            }
+                        ],
+                        max_tokens: 10
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.choices && data.choices.length > 0) {
+                    statusEl.textContent = `✅ 连接成功! 模型: ${modelname}`;
+                    statusEl.style.color = '#4CAF50';
+                    console.log('✅ API测试成功:', data);
+                } else {
+                    throw new Error('返回数据格式异常');
+                }
+            } catch (error) {
+                console.error('❌ API测试失败:', error);
+                statusEl.textContent = `❌ 测试失败: ${error.message}`;
+                statusEl.style.color = '#f44336';
+            }
+        }
+
 
         /**
          * 更新聊天页面的标题
