@@ -3339,19 +3339,28 @@
                 const isMiuiBrowser = /MiuiBrowser/i.test(navigator.userAgent);
                 
                 if (isMiuiBrowser) {
-                    console.log('🔍 检测到小米浏览器，使用新窗口方案');
+                    console.log('🔍 检测到小米浏览器，使用 Blob URL 方案');
                     
-                    alert('即将在新窗口打开系统备份\n\n包含 ' + Object.keys(allData.data).length + ' 个数据项\n\n保存方法：\n1. 在新页面长按屏幕\n2. 选择"保存网页"\n3. 文件名改为：' + filename + '\n\n点击"确定"继续');
-                    
-                    const textContent = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
-                    const newWindow = window.open(textContent, '_blank');
-                    
-                    if (!newWindow) {
-                        alert('⚠️ 无法打开新窗口，请允许弹出窗口权限后重试');
-                    } else {
-                        console.log('✅ 导出成功:', filename);
+                    try {
+                        const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        alert('即将在新窗口打开系统备份\n\n包含 ' + Object.keys(allData.data).length + ' 个数据项\n\n保存方法：\n1. 在新页面点击"⋮"\n2. 选择"保存网页"\n3. 改名为：' + filename);
+                        
+                        const newWindow = window.open(url, '_blank');
+                        
+                        if (!newWindow) {
+                            alert('⚠️ 无法打开新窗口，请允许弹出窗口权限');
+                        } else {
+                            console.log('✅ 导出成功:', filename);
+                            setTimeout(() => URL.revokeObjectURL(url), 60000);
+                        }
+                        return;
+                    } catch (error) {
+                        console.error('❌ Blob URL 方案失败:', error);
+                        alert('导出失败：' + error.message);
+                        return;
                     }
-                    return;
                 }
                 
                 // 非小米浏览器：使用标准方案
@@ -5102,19 +5111,34 @@
             const isMiuiBrowser = /MiuiBrowser/i.test(navigator.userAgent);
             
             if (isMiuiBrowser) {
-                // 小米浏览器：在新窗口显示JSON，让用户保存页面
-                console.log('🔍 检测到小米浏览器，使用新窗口方案');
+                // 小米浏览器：使用 Blob URL + window.open
+                console.log('🔍 检测到小米浏览器，使用 Blob URL 方案');
                 
-                alert('即将在新窗口打开备份数据\n\n保存方法：\n1. 在新页面长按屏幕\n2. 选择"保存网页"或"下载"\n3. 文件名改为：' + exportFileName + '\n\n点击"确定"继续');
-                
-                // 使用纯文本方式，不用HTML转义
-                const textContent = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
-                const newWindow = window.open(textContent, '_blank');
-                
-                if (!newWindow) {
-                    alert('⚠️ 无法打开新窗口，请允许弹出窗口权限后重试');
+                try {
+                    // 创建 Blob
+                    const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    alert('即将在新窗口打开备份数据\n\n保存方法：\n1. 在新页面点击右上角"⋮"\n2. 选择"保存网页"或"下载"\n3. 将文件改名为：' + exportFileName + '\n\n如果新窗口空白，请点击"确定"后等待几秒\n\n点击"确定"继续');
+                    
+                    // 打开新窗口
+                    const newWindow = window.open(url, '_blank');
+                    
+                    if (!newWindow) {
+                        alert('⚠️ 无法打开新窗口\n\n请执行以下操作：\n1. 在浏览器设置中允许弹出窗口\n2. 或者尝试用其他浏览器（Chrome/Firefox）访问此页面');
+                    } else {
+                        console.log('✅ 已在新窗口打开 Blob URL');
+                        // 延迟清理 URL，给浏览器足够时间加载
+                        setTimeout(() => {
+                            URL.revokeObjectURL(url);
+                        }, 60000); // 60秒后清理
+                    }
+                    return;
+                } catch (error) {
+                    console.error('❌ Blob URL 方案失败:', error);
+                    alert('导出失败：' + error.message + '\n\n建议：\n1. 使用电脑浏览器访问此页面\n2. 或使用 Chrome/Firefox 等其他浏览器');
+                    return;
                 }
-                return;
             }
             
             // 非小米浏览器：使用标准下载方案
@@ -5726,20 +5750,29 @@
             const isMiuiBrowser = /MiuiBrowser/i.test(navigator.userAgent);
             
             if (isMiuiBrowser) {
-                console.log('🔍 检测到小米浏览器，使用新窗口方案');
+                console.log('🔍 检测到小米浏览器，使用 Blob URL 方案');
                 
-                alert('即将在新窗口打开分支数据\n\n保存方法：\n1. 在新页面长按屏幕\n2. 选择"保存网页"\n3. 文件名改为：' + filename + '\n\n点击"确定"继续');
-                
-                const textContent = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
-                const newWindow = window.open(textContent, '_blank');
-                
-                if (!newWindow) {
-                    alert('⚠️ 无法打开新窗口，请允许弹出窗口权限后重试');
-                } else {
-                    showToast('分支已在新窗口打开');
-                    console.log('💾 已导出分支:', filename);
+                try {
+                    const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    alert('即将在新窗口打开分支数据\n\n保存方法：\n1. 在新页面点击"⋮"\n2. 选择"保存网页"\n3. 改名为：' + filename);
+                    
+                    const newWindow = window.open(url, '_blank');
+                    
+                    if (!newWindow) {
+                        alert('⚠️ 无法打开新窗口，请允许弹出窗口权限');
+                    } else {
+                        showToast('分支已在新窗口打开');
+                        console.log('💾 已导出分支:', filename);
+                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    }
+                    return;
+                } catch (error) {
+                    console.error('❌ Blob URL 方案失败:', error);
+                    alert('导出失败：' + error.message);
+                    return;
                 }
-                return;
             }
             
             // 非小米浏览器：使用标准方案
@@ -7364,19 +7397,28 @@ ${conversationText}
             const isMiuiBrowser = /MiuiBrowser/i.test(navigator.userAgent);
             
             if (isMiuiBrowser) {
-                console.log('🔍 检测到小米浏览器，使用新窗口方案');
+                console.log('🔍 检测到小米浏览器，使用 Blob URL 方案');
                 
-                alert('即将在新窗口打开记忆数据\n\n保存方法：\n1. 在新页面长按屏幕\n2. 选择"保存网页"\n3. 文件名改为：' + fileName + '\n\n点击"确定"继续');
-                
-                const textContent = 'data:text/plain;charset=utf-8,' + encodeURIComponent(dataStr);
-                const newWindow = window.open(textContent, '_blank');
-                
-                if (!newWindow) {
-                    alert('⚠️ 无法打开新窗口，请允许弹出窗口权限后重试');
-                } else {
-                    showToast('✅ 已在新窗口打开');
+                try {
+                    const blob = new Blob([dataStr], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    alert('即将在新窗口打开记忆数据\n\n保存方法：\n1. 在新页面点击"⋮"\n2. 选择"保存网页"\n3. 改名为：' + fileName);
+                    
+                    const newWindow = window.open(url, '_blank');
+                    
+                    if (!newWindow) {
+                        alert('⚠️ 无法打开新窗口，请允许弹出窗口权限');
+                    } else {
+                        showToast('✅ 已在新窗口打开');
+                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    }
+                    return;
+                } catch (error) {
+                    console.error('❌ Blob URL 方案失败:', error);
+                    alert('导出失败：' + error.message);
+                    return;
                 }
-                return;
             }
 
             // 非小米浏览器：使用标准下载方案
