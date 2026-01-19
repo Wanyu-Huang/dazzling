@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dazzling</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Dazzling v2.0 - 小米专用版</title>
     <style>
         /* 移动端基础样式 */
         body {
@@ -5095,6 +5098,9 @@
          * 改进版本：支持小米浏览器等多种浏览器
          */
         document.getElementById('export-btn').addEventListener('click', async () => {
+            // 立即弹窗，确认函数被调用
+            alert('🔍 导出函数已启动\n\n版本：v2.0 小米专用版\n\n如果看到这个提示，说明代码正在运行');
+            
             // 导出包含所有必要数据的完整对象
             const exportData = {
                 chatHistory: chatHistory,
@@ -5109,6 +5115,9 @@
 
             // 检测是否为小米浏览器
             const isMiuiBrowser = /MiuiBrowser/i.test(navigator.userAgent);
+            const userAgent = navigator.userAgent;
+            
+            alert(`📱 浏览器信息：\n\n${isMiuiBrowser ? '✅ 检测到小米浏览器' : '❌ 非小米浏览器'}\n\nUserAgent:\n${userAgent.substring(0, 100)}...`);
             
             if (isMiuiBrowser) {
                 console.log('🔍 检测到小米浏览器，使用分段复制方案');
